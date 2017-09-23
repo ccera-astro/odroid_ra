@@ -1,0 +1,278 @@
+#!/bin/bash
+START=400
+SRATE=2560000
+DRATE=2000
+INCR=50
+GAIN=35
+EXPPREF=pulsar
+GIZMOHOST=netradio-2
+LONGIT=-76.02
+HOSTLIST=(netradio-0 netradio-1 netradio-2 netradio-3)
+rm -f pulsar_pids.dat
+function kill_them_all
+{
+	list=`ps -fu $USER |grep 'ssh astronomer@.*py' |grep -v sshpass |grep -v grep|awk '/./ {print $2}'`
+	kill -1 $list
+}
+function kill_remotes
+{
+	for host in ${HOSTLIST[*]}
+	do
+		echo Killing remote scripts on node $host
+		sshpass -p astronomer ssh astronomer@$host "killall -q python; sleep 2; killall -q python"
+	done
+}
+function get_current_size
+{
+	CTIME=`date +%s`
+	cnt=`ls -ltrn $HOME/ra_data/${1}/*raw.dat|tail -1`
+	cnt=`echo $cnt|awk '/./ {print $5; exit}'`
+	CSIZE=$cnt
+}
+function eval_drate
+{
+	result=`echo $1|awk '/./ {if (2560000 % $1 != 0) {print "BAD"} else {print "GOOD"}}'`
+	RESULT=$result
+}
+
+function do_help
+{
+	cat >/dev/stdout <<!EOF!
+
+Usage: start_pulsars [--host host] [--prefix prefix] 
+        [--start start_freq] [--incr incr_freq] [--gain gain]
+        [--gizmo ghost]
+
+Options:
+
+--host   <host>  Add <host> to list of Odroid hosts
+                   (${HOSTLIST[*]})
+--prefix <pref>  Use <pref> as the directory/filename prefix ($EXPPREF)
+--start  <sfreq> Use <sfreq>, in MHz, as the starting frequency ($START)
+--incr   <ifreq> Use <ifreq>, in MHz, as the frequency increment ($INCR)
+--gain   <gain>  Use <gain> as analog RF gain setting $(GAIN)
+--gizmo  <ghost> Use <ghost> as timing-gizmo host ($GIZMOHOST)
+--drate  <drate> Set detector output rate to <drate> ($DRATE)
+--srate  <srate> Set sample rate to <srate> ($SRATE)
+!EOF!
+}
+
+nhostlist[0]="NONE"
+hostndx=0
+while [ $# -ge 1 ]
+do
+	case $1 in
+	--host)
+		nhostlist[${hostndx}]=$2
+		shift 2
+		hostndx=`expr $hostndx + 1`
+		;;
+	--prefix)
+		EXPPREF=$2
+		shift 2
+		;;
+	--start)
+		START=$2
+		shift 2
+		;;
+	--incr)
+		INCR=$2
+		shift 2
+		;;
+	--gain)
+		GAIN=$2
+		shift 2
+		;;
+	--gizmo)
+		GIZMOHOST=$2
+		shift 2
+		;;
+
+	--help)
+		do_help
+		exit
+		;;
+	--drate)
+		DRATE=`echo $2|awk '/./ {printf ("%d", $1)}'`
+		shift 2
+		;;
+	--srate)
+		SRATE=`echo $2|awk '/./ {printf ("%d", $1)}'`
+		shift 2
+		;;
+	*)
+		echo Unknown command-line argument: $1
+		do_help
+		exit
+		;;
+	esac
+done
+
+eval_drate $DRATE
+if [ $RESULT = "BAD" ]
+then
+	echo "Requested detector output rate: $DRATE is invalid"
+	echo "Because it isn't an integer fraction of 2.56e6"
+	exit
+fi
+
+if [ "${nhostlist[0]}" != NONE ]
+then
+	HOSTLIST=(${nhostlist[*]})
+fi
+echo Doing pulsar runs on hosts: ${HOSTLIST[*]}
+echo Start frequency: $START MHz increment $INCR MHz
+echo Detector sample rate: $DRATE sps
+echo RF sample rate: `echo $SRATE|awk '/./ {printf ("%6.2fMsps", $1/1.0e6)}'`
+bw_chan=`expr $SRATE / 5`
+bw_chan=`expr $bw_chan / 1000`
+echo Detector bandwidth: ${bw_chan}kHz/channel
+echo Running timing gizmo on: ${GIZMOHOST}
+
+start_freq=$START
+hcnt=0
+fcnt=0
+for h in ${HOSTLIST[*]}
+do
+	mkdir -p $HOME/ra_data/${EXPPREF}_${h}
+    f1=$start_freq
+	f2=`expr $start_freq + $INCR`
+	tuned[${fcnt}]=$f1
+	fcnt=`expr $fcnt + 1`
+	tuned[${fcnt}]=$f2
+	fcnt=`expr $fcnt + 1`
+	run_odroid -f ${f1}e6 -f2 ${f2}e6 -g 30 -g2 30 -s $SRATE -n ${EXPPREF}_${h} -h ${h} -t pulsar \
+	    -l -76.02 -a 0.1 -m 100 -ld -ls -dr $DRATE >$HOME/ra_data/${EXPPREF}_${h}/start.log 2>&1  &
+	echo $! >>pulsar_pids.dat
+	incr=`expr $INCR \* 2`
+	start_freq=`expr $start_freq + $incr`
+	hcnt=`expr $hcnt + 1`
+done
+
+
+echo Using $hcnt remote hosts with `expr $hcnt \* 2 \* 5` total detector channels
+echo "Tuned frequencies (MHz)": ${tuned[*]}
+
+#
+# Run the fake-pulsar time-alignment gizmo for 45 seconds, after waiting 20 seconds
+#
+if [ $GIZMOHOST != None -a $GIZMOHOST != NONE -a $GIZMOHOST != none ]
+then
+	echo -n Running the pulsar time-alignment gizmo on ${GIZMOHOST} please wait...
+	sleep 10
+	sshpass -p astronomer ssh astronomer@${GIZMOHOST} "source ~/.bashrc; fake_pulsar.py --pause 20 --runtime 45" 
+	echo complete
+	echo " "
+else
+	echo -n Pausing for remote jobs to start up before continuing please wait...
+	sleep 60
+	echo Done
+	echo " "
+fi
+echo =================================================================
+echo You may terminate the running remote pulsar jobs at any time, by entering \'y\' below
+
+
+ndx=0
+for h in ${HOSTLIST[*]}
+do
+	get_current_size ${EXPPREF}_${h}
+	cls[ndx]=$CSIZE
+	ctimes[ndx]=$CTIME
+	crates[ndx]=$DRATE
+	ndx=`expr $ndx + 1`
+done
+
+trap "( kill_them_all; kill_remotes; exit 0) >/dev/null 2>&1" 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20		
+echo -n "Terminate pulsar jobs?"
+ctr=0
+while : 
+do
+	read -t 2 ans
+	if [ Q${ans}Q = QQ ]
+	then
+		ans=N
+	fi
+	case $ans in
+		y|Y|yes|Yes|YES)
+			kill_them_all
+			kill_remotes
+			exit
+	esac
+	for h in ${HOSTLIST[*]}
+	do
+		prefdir=$HOME/ra_data/${EXPPREF}_${h}
+		
+		lc=`cat $prefdir/start.log|wc -l`
+		fsz=`ls -l $prefdir/start.log|awk '/./ {print $5; exit}'`
+		if grep -q OOOOO $prefdir/start.log
+		then
+			echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+			echo Pulsar node ${h} experiencing significant overruns--data may be unreliable
+			echo -n "Terminate pulsar jobs?"
+		fi
+		if [ $lc -gt 30 ]
+		then
+			echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+			echo Pulsar node ${h} misbehaving with $lc lines in the start.log file
+			echo -n "Terminate pulsar jobs?"
+		fi
+		if [ $fsz -gt 1500 -o $fsz -lt 400 ]
+		then
+			echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+			echo Pulsar node ${h} misbehaving with a start.log of $fsz bytes
+			echo -n "Terminate pulsar jobs?"
+		fi
+	done
+	ctr=`expr $ctr + 1`
+	if [ $ctr -ge 4 ]
+	then
+	    ndx=0
+		for h in ${HOSTLIST[*]}
+		do
+			get_current_size ${EXPPREF}_${h}
+			csz=$CSIZE
+			ctim=$CTIME
+			tdiff=`expr $ctim - ${ctimes[${ndx}]}`
+			ctimes[${ndx}]=$ctim
+			differ=`expr $csz - ${cls[${ndx}]}`
+			rate=`expr $differ / $tdiff`
+			rate=`expr $rate / 40`
+			if [ $rate -lt 0 ]
+			then
+				rate=$DRATE
+			fi
+			crates[${ndx}]=`expr $rate + ${crates[${ndx}]}`
+			crates[${ndx}]=`expr ${crates[${ndx}]} / 2`
+			margin=`expr $DRATE / 8`
+			low=`expr $DRATE - $margin`
+			hi=`expr $DRATE + $margin`
+
+			hour=`date -u +%H`
+	        minute=`date -u +%M`
+	        
+	        #
+	        # Avoid the anomaly at midnight UTC
+	        #
+	        
+			if [ $hour -eq 0 -a $minute -lt 5 ]
+			then
+				avoid=True
+			else
+				avoid=False
+			fi
+			if [ $avoid = False ]
+			then
+				if [ ${crates[${ndx}]} -lt $low -o ${crates[${ndx}]} -gt $hi ]
+				then
+					echo Pulsar node ${h} producing RAW time-series data at unexpected rate ${crates[${ndx}]}sps
+					echo This rate is significantly different than the expected ${DRATE}sps
+					echo -n "Terminate pulsar jobs?"
+				fi
+			fi
+			cls[${ndx}]=$csz
+			ndx=`expr $ndx + 1`
+		done
+		ctr=0
+	fi
+done

@@ -1,0 +1,485 @@
+#!/bin/bash
+TYPE=differential
+SRATE=None
+DRATE=1000
+FREQ=None
+FREQ2=None
+EXPNAME=None
+HPASS=300
+HOST=None
+GAIN=None
+UDEV=None
+GAIN2=None
+EXPNAME=None
+FPERIOD=144
+CDEV="/dev/ttyACM0"
+HPASS=0
+LONG=None
+BANDWIDTH=250e3
+FG1=1.0
+FG2=1.0
+ALPHA=0.05
+DCGAIN=1.0
+DEVICE=type=b200
+SUBDEV="A:A A:B"
+PARAMS="peak=0.000125"
+CLOCK=32e6
+DLOG=OFF
+SLOG=OFF
+LRATE=2
+IFREQ=1353e6
+
+function killer
+{
+	if [ -f ra_detector_receiver-$EXPNAME.pid ]
+	then
+		kill -1 `cat ra_detector_receiver-$EXPNAME.pid` >/dev/null 2>&1
+		rm -f ra_detector_receiver-$EXPNAME.pid
+	fi
+	sshpass -p astronomer ssh astronomer@$HOST "source ~/.bashrc; psycho_killer.py astronomer $1"
+}
+	
+function print_help
+{
+	cat <<!EOF!
+$umsg
+
+-f <freq>            Set operating frequency, in Hz
+-f2 <freq2>          Secondary operating frequency, in Hz
+-g <gain>            Set operating RF gain, in dB
+-g2 <gain>           Secondary gain setting, in dB
+-s <samp_rate>       Set sample-rate, in Hz
+-n <expname>         Set experiment name
+-h <host>            Talk to Odroid at given address/name
+-t <type>            Set experiment type: must be 'corrint', 'differential', 'pulsar', 'specline', 'addint'
+-l <long>            Set experiment geographic longitude (for LMST)
+-d <dbw>             Set detector filter bandwidth, in Hz (differential only)
+-fg1 <filter_gain>   Set 1st filter gain, as a ratio (typ. values: 1.00 to 1.10)
+-fg2 <filter_gain>   Set 2nd filter gain, as a ratio (typ. values: 1.00 to 1.10)
+-a <alpha>           Set alpha value for IIR filter (typ. values: 0.001 to 0.1)
+-m <dc-gain>         Set dc-gain value (typ. values: 1.0e2 to 1.0e6)
+-cd <cdev>           Set device name for serial device to use to turn on/off calibration source (default: $CDEV)
+-ld                  Turn on basic detector logging
+-ls                  Turn on spectral logging
+-i <devid>           Set (UHD) device ID
+-u <subdev>          Set (UHD) subdevice
+-x <streamparams>    Set (UHD) stream parameters
+-c <clock>           Set (UHD) master clock rate
+-lr <rate>           Set continuum lograte to <rate> seconds between logged data lines
+-dr <rate>           Set pulsar detector output rate to <rate>
+-if <freq>           Set downconverted (IF) frequency (for spec-line detection with downconversion)
+-hp <time>           Set time-constant for high-pass filter in 'addint' (def: $HPASS)
+!EOF!
+}
+umsg="Usage: run_odroid -f freq -g gain -s srate -n exp-name -t type -h host -l longitude -d dbw"
+if [ $# -lt 1 ]
+then
+	echo $umsg
+	exit 0
+fi
+
+#
+# Process command-line parameters.  Most of them are mandatory
+#
+while [ $# -gt 0 ]
+do
+	case $1 in
+	-f)
+		FREQ=$2
+		shift 2
+		;;
+	-f2)
+		FREQ2=$2
+		shift 2
+		;;
+	-g)
+		GAIN=$2
+		shift 2
+		;;
+	-g2)
+		GAIN2=$2
+		shift 2
+		;;
+	-s)
+		SRATE=$2
+		shift 2
+		;;
+	-n)
+		EXPNAME=$2
+		shift 2
+		;;
+	-t)
+		TYPE=$2
+		shift 2
+		;;
+	-h)
+		HOST=$2
+		shift 2
+		;;
+	-l)
+		LONG=$2
+		shift 2
+		;;
+	-d)
+		BANDWIDTH=$2
+		shift 2
+		;;
+	
+	-fg1)
+		FG1=$2
+		shift 2
+		;;
+	
+	-fg2)
+		FG2=$2
+		shift 2
+		;;
+	-help|--help)
+		print_help
+		exit 0
+		;;
+	-a)
+		ALPHA=$2
+		shift 2
+		;;
+	-m) DCGAIN=$2
+		shift 2
+		;;
+	-i)
+		DEVICE=$2
+		UDEV=$2
+		shift 2
+		;;
+	-u)
+		SUBDEV="$2"
+		shift 2
+		;;
+	-x)
+		PARAMS=$2
+		shift 2
+		;;
+		
+	-c)
+		CLOCK=$2
+		shift 2
+		;;
+	-ld)
+		DLOG=ON
+		shift
+		;;
+	-lr)
+		LRATE=$2
+		shift 2
+		;;
+	-ls)
+		SLOG=ON
+		shift 1
+		;;
+	-dr)
+		DRATE=$2
+		shift 2
+		;;
+	-cd)
+		CDEV=$2
+		shift 2
+		;;
+		
+	-if)
+		IFREQ=$2
+		shift 2
+		;;
+	-hp)
+		HPASS=$2
+		shift 2
+		;;
+
+	*)
+		echo Unknown option $1
+		exit 0
+	esac
+done
+
+#
+# Generate a random port number--hopefully, never a collision
+#
+PORTVALID=NO
+while [ $PORTVALID = "NO" ]
+do
+	PORT=`od -t u1 -N 1 /dev/urandom|awk '/./ {print $2; exit}'`
+	PORT=`expr 16000 + $PORT`
+	netstat -an >portfind$$
+	if grep -q "^tcp.*0.0.0.0:$PORT.*0.0.0.0:.*LISTEN" portfind$$
+	then
+		echo TCP port $PORT already in use, trying again
+	else
+		PORTVALID=YES
+	fi
+	rm -f portfind$$
+done
+
+#
+# Check for missing parameters
+#
+if [ $HOST = None -o $TYPE = None -o $SRATE = None -o $EXPNAME = None ]
+then
+	echo Missing -h, -t, -s, or -n parameter
+	echo $umsg
+	exit 0
+fi
+
+if [ $GAIN = None -o $FREQ = None -o $LONG = None ]
+then
+	echo Missing -g, -f or -l parameter
+	echo $umsg
+	exit 0
+fi
+
+#
+# Check for correct experiment type
+#
+if [ $TYPE != differential -a $TYPE != corrint -a $TYPE != pulsar  -a $TYPE != specline -a $TYPE != addint ]
+then
+	echo option -t must be either "'differential'" or "'corrint'" or "'pulsar'" or "'specline'" or "'addint'"
+	exit 0
+fi
+
+#
+# Find out what the local address is of our primary ethernet interface
+#   by sending a command over to the target odroid that tells us where we're
+#   calling from.
+#
+inaddr=`sshpass -p astronomer ssh astronomer@$HOST "printenv |grep SSH_CLIENT|sed -e 's/.*=//'|sed -e 's/ .*//'"`
+
+echo Establishing session with Odroid at $HOST
+echo Data will be sent back to ${inaddr}:$PORT
+
+#
+# Make the data logging directory, if it doesn't already exist
+#
+if [ ! -e $HOME/ra_data/$EXPNAME ]
+then
+	mkdir -p $HOME/ra_data/$EXPNAME
+fi
+echo Data will be saved in $HOME/ra_data/$EXPNAME
+#
+# Change directory to there, startup appropriate goo
+#
+cd $HOME/ra_data/$EXPNAME
+
+dlogging=""
+slogging=""
+if [ $DLOG = ON ]
+then
+	dlogging="--dlog"
+fi
+if [ $SLOG = ON ]
+then
+	slogging="--slog"
+fi
+if [ $FREQ2 = None ]
+then
+	FREQ2=$FREQ
+fi
+
+#
+# A USRP-based correlation interferometer--realistically, that's B210, USRP1+matched cards, or X3xx+matched cards.
+#  One might try B100+TVRX2, but the TVRX2 has hardware AGC that cannot be turned off
+#
+if [ $TYPE = corrint ]
+then
+    RNAME=corrint_uhd.py
+	ra_detector_receiver.py -a $ALPHA -p $PORT -1 $FREQ -2 $FREQ  \
+		-l $LONG -r $LRATE -g $DCGAIN -x $EXPNAME -e "COS:(A*B)/SIN:(A*B)/0/0/0" --suppress $dlogging $slogging &
+	#
+	# Remember the PID, since we started it in the background
+	#
+	PID=$!
+	trap "(kill -1 $PID; sleep 1; kill -9 $PID; killer $RNAME; exit 0) >/dev/null 2>&1" 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
+	if [ $GAIN2 = None ]
+	then
+		GAIN2=$GAIN
+	fi
+	sshpass -p astronomer ssh astronomer@$HOST "rm -f .gr_fftw_wisdom"
+	cmd="corrint_uhd.py --freq $FREQ --port $PORT --host $inaddr --gain1 $GAIN --gain2 $GAIN2 --srate $SRATE --devid $DEVICE --sargs $PARAMS --subdev \"$SUBDEV\" --clock $CLOCK"
+	sshpass -p astronomer ssh astronomer@$HOST "source ~/.bashrc; psycho_killer.py astronomer $RNAME; sleep 1; $cmd"
+	#
+	# If it didn't spontaneously die when the far-side quit, kill it now
+	#
+	kill -1 $PID >/dev/null 2>&1
+	killer $RNAME
+fi
+
+#
+# A generic two-RTLSDR dongle differential receiver -- could also be
+#  a differential interferometer, or even just two separate total-power receivers.
+#
+if [ $TYPE = differential ]
+then
+	RNAME=ra_sender.py
+	buflen=""
+	irate=`echo $SRATE |awk '/./ {printf ("%d\n", $1)}'`
+	if [ $irate -lt 1000000 ]
+	then
+		buflen=",buflen=16384"
+	fi
+	#
+	# Deal with lower buffer sizes for slower sample rates
+	#
+	d1=rtl=RCVR1${buflen}
+	d2=rtl=RCVR2${buflen}
+		
+	ra_detector_receiver.py -a $ALPHA -p $PORT -1 $FREQ -2 $FREQ  \
+		-l $LONG -r $LRATE -g $DCGAIN -x $EXPNAME $dlogging $slogging &
+	
+	#
+	# Remember PID, in case we have to kill it
+	#
+	PID=$!
+	trap "(kill -1 $PID; sleep 1; kill -9 $PID; killer $RNAME; exit 0) >/dev/null 2>&1" 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
+	
+	sshpass -p astronomer ssh astronomer@$HOST "rm -f .gr_fftw_wisdom"
+	
+	cmd="ra_sender.py --gain $GAIN --devid1 $d1 --devid2 $d2 --f1 $FREQ --f2 $FREQ2  --host $inaddr --port $PORT --srate $SRATE --dbw $BANDWIDTH --fg1 $FG1 --fg2 $FG2 --cdev $CDEV --udev $UDEV"
+	echo Running remote command: "$cmd"
+	sshpass -p astronomer ssh astronomer@$HOST "source ~/.bashrc; psycho_killer.py astronomer $RNAME; sleep 2; $cmd"
+	
+	#
+	# If we get here, kill background recorder task
+	#
+	kill -1 $PID >/dev/null 2>&1
+	killer $RNAME
+fi
+
+#
+# A generic two-RTLSDR two-baseline adding interferometer.
+# This takes two adding-interferometer outputs, and does DC-subtraction
+#   for each baseline.
+#
+# So, you could fairly-easily and cheaply build up an array using
+#  off-the-shelf CATV/SATTV-type combiners, feeding arrays of
+#  RTLSDR + Odroid C1 or XU4.
+#
+#
+if [ $TYPE = addint ]
+then
+	RNAME=ra_sender.py
+	buflen=""
+	irate=`echo $SRATE |awk '/./ {printf ("%d\n", $1)}'`
+	if [ $irate -lt 1000000 ]
+	then
+		buflen=",buflen=16384"
+	fi
+	#
+	# Deal with lower buffer sizes for slower sample rates
+	#
+	d1=rtl=RCVR1${buflen}
+	d2=rtl=RCVR2${buflen}
+		
+	ra_detector_receiver.py -a $ALPHA -p $PORT -1 $FREQ -2 $FREQ  \
+		-l $LONG -r $LRATE -g $DCGAIN -x $EXPNAME $dlogging $slogging &
+	
+	#
+	# Remember PID, in case we have to kill it
+	#
+	PID=$!
+	trap "(kill -1 $PID; sleep 1; kill -9 $PID; killer $RNAME; exit 0) >/dev/null 2>&1" 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
+	
+	sshpass -p astronomer ssh astronomer@$HOST "rm -f .gr_fftw_wisdom"
+	
+	cmd="ra_adding_double.py --gain $GAIN --devid1 $d1 --devid2 $d2 --f1 $FREQ --f2 $FREQ2  --host $inaddr --port $PORT --srate $SRATE --dbw $BANDWIDTH --fg1 $FG1 --fg2 $FG2  --udev $UDEV --hpass $HPASS"
+	echo Running remote command: "$cmd"
+	sshpass -p astronomer ssh astronomer@$HOST "source ~/.bashrc; psycho_killer.py astronomer $RNAME; sleep 2; $cmd"
+	
+	#
+	# If we get here, kill background recorder task
+	#
+	kill -1 $PID >/dev/null 2>&1
+	killer $RNAME
+fi
+
+#
+# Run specline-line receiver on E300
+#
+if [ $TYPE = specline ]
+then
+	RNAME=methanol_sender.py
+	buflen=""
+	irate=`echo $SRATE |awk '/./ {printf ("%d\n", $1)}'`
+	if [ $irate -lt 1000000 ]
+	then
+		buflen=",buflen=16384"
+	fi
+	#
+	# Deal with lower buffer sizes for slower sample rates
+	#
+	d1=rtl=RCVR1${buflen}
+	d2=rtl=RCVR2${buflen}
+		
+	ra_detector_receiver.py -a $ALPHA -p $PORT -1 $FREQ -2 $FREQ  \
+		-l $LONG -r $LRATE -g $DCGAIN -x $EXPNAME $dlogging $slogging &
+	
+	#
+	# Remember PID, in case we have to kill it
+	#
+	PID=$!
+	trap "(kill -1 $PID; sleep 1; kill -9 $PID; killer $RNAME; exit 0) >/dev/null 2>&1" 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
+	
+	sshpass -p astronomer ssh astronomer@$HOST "rm -f .gr_fftw_wisdom"
+	G2=$GAIN2
+	if [ $G2 = None ]
+	then
+		G2=40
+	fi
+	cmd="methanol_sender.py --host $inaddr --port $PORT --gain $GAIN --txgain $G2 --freq $FREQ --srate $SRATE --dfreq $IFREQ"
+	echo Running remote command: "$cmd"
+	sshpass -p astronomer ssh astronomer@$HOST "source ~/.bashrc; psycho_killer.py astronomer $RNAME; sleep 2; $cmd"
+	
+	#
+	# If we get here, kill background recorder task
+	#
+	kill -1 $PID >/dev/null 2>&1
+	killer $RNAME
+fi
+
+#
+# A generic two-RTLSDR dongle pulsar receiver
+#
+if [ $TYPE = pulsar ]
+then
+	RNAME=psr_sender.py
+	buflen=""
+	irate=`echo $SRATE |awk '/./ {printf ("%d\n", $1)}'`
+	if [ $irate -lt 1000000 ]
+	then
+		buflen=",buflen=16384"
+	fi
+	#
+	# Deal with lower buffer sizes for slower sample rates
+	#
+	#
+	# For the specific case of pulsar, we assume that both receivers are connected to the same antenna, and so don't
+	#  bother using fancy device names.  This came up on the "pulsar monster" when one of the dongles didn't have an
+	#  EEPROM.
+	#
+	d1=rtl=0${buflen}
+	d2=rtl=1${buflen}
+		
+	ra_pulsar_receiver.py -a $ALPHA -p $PORT -f ${FREQ},${FREQ2}  \
+		-l $LONG -r 90 -x $EXPNAME -n 10 &
+	
+	#
+	# Remember PID, in case we have to kill it
+	#
+	PID=$!
+	trap "(kill -1 $PID; sleep 1; kill -9 $PID; killer $RNAME; exit 0) >/dev/null 2>&1" 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
+	
+	sshpass -p astronomer ssh astronomer@$HOST "rm -f .gr_fftw_wisdom"
+	cmd="psr_sender.py --gain $GAIN --freq1 $FREQ --freq2 $FREQ2 --host $inaddr --port $PORT --srate1 $SRATE --srate2 $SRATE --devid1 $d1 --devid2 $d2 --drate $DRATE"
+	sshpass -p astronomer ssh astronomer@$HOST "source ~/.bashrc; psycho_killer astronomer $RNAME; sleep 2; $cmd"
+	
+	#
+	# If we get here, kill background recorder task
+	#
+	kill -1 $PID >/dev/null 2>&1
+	killer $RNAME
+fi
