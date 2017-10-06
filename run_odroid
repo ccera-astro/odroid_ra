@@ -16,6 +16,7 @@ CDEV="/dev/ttyACM0"
 HPASS=0
 LONG=None
 BANDWIDTH=250e3
+ABW=-1.0
 FG1=1.0
 FG2=1.0
 ALPHA=0.05
@@ -69,6 +70,7 @@ $umsg
 -dr <rate>           Set pulsar detector output rate to <rate>
 -if <freq>           Set downconverted (IF) frequency (for spec-line detection with downconversion)
 -hp <time>           Set time-constant for high-pass filter in 'addint' (def: $HPASS)
+-abw                 Set analog bandwidth for RF front-end
 !EOF!
 }
 umsg="Usage: run_odroid -f freq -g gain -s srate -n exp-name -t type -h host -l longitude -d dbw"
@@ -96,6 +98,10 @@ do
 		GAIN=$2
 		shift 2
 		;;
+	-abw)
+	    ABW=$2
+	    shift 2
+	    ;;
 	-g2)
 		GAIN2=$2
 		shift 2
@@ -339,7 +345,7 @@ then
 	
 	sshpass -p astronomer ssh astronomer@$HOST "rm -f .gr_fftw_wisdom"
 	
-	cmd="ra_sender.py --gain $GAIN --devid1 $d1 --devid2 $d2 --f1 $FREQ --f2 $FREQ2  --host $inaddr --port $PORT --srate $SRATE --dbw $BANDWIDTH --fg1 $FG1 --fg2 $FG2 --cdev $CDEV --udev $UDEV"
+	cmd="ra_sender.py --gain $GAIN --devid1 $d1 --devid2 $d2 --f1 $FREQ --f2 $FREQ2  --abw $ABW --host $inaddr --port $PORT --srate $SRATE --dbw $BANDWIDTH --fg1 $FG1 --fg2 $FG2 --cdev $CDEV --udev $UDEV"
 	echo Running remote command: "$cmd"
 	sshpass -p astronomer ssh astronomer@$HOST "source ~/.bashrc; psycho_killer.py astronomer $RNAME; sleep 2; $cmd"
 	
