@@ -29,6 +29,7 @@ DLOG=OFF
 SLOG=OFF
 LRATE=2
 IFREQ=1353e6
+DECLN=-99
 
 function killer
 {
@@ -54,6 +55,7 @@ $umsg
 -h <host>            Talk to Odroid at given address/name
 -t <type>            Set experiment type: must be 'corrint', 'differential', 'pulsar', 'specline', 'addint'
 -l <long>            Set experiment geographic longitude (for LMST)
+-dec <decln>         Set declination for this run
 -d <dbw>             Set detector filter bandwidth, in Hz (differential only)
 -fg1 <filter_gain>   Set 1st filter gain, as a ratio (typ. values: 1.00 to 1.10)
 -fg2 <filter_gain>   Set 2nd filter gain, as a ratio (typ. values: 1.00 to 1.10)
@@ -70,7 +72,7 @@ $umsg
 -dr <rate>           Set pulsar detector output rate to <rate>
 -if <freq>           Set downconverted (IF) frequency (for spec-line detection with downconversion)
 -hp <time>           Set time-constant for high-pass filter in 'addint' (def: $HPASS)
--abw                 Set analog bandwidth for RF front-end
+-abw <bw>            Set front-end analog bandwidth
 !EOF!
 }
 umsg="Usage: run_odroid -f freq -g gain -s srate -n exp-name -t type -h host -l longitude -d dbw"
@@ -98,10 +100,6 @@ do
 		GAIN=$2
 		shift 2
 		;;
-	-abw)
-	    ABW=$2
-	    shift 2
-	    ;;
 	-g2)
 		GAIN2=$2
 		shift 2
@@ -130,7 +128,10 @@ do
 		BANDWIDTH=$2
 		shift 2
 		;;
-	
+	-dec)
+	    DECLN=$2
+	    shift 2
+	    ;;
 	-fg1)
 		FG1=$2
 		shift 2
@@ -198,6 +199,10 @@ do
 		HPASS=$2
 		shift 2
 		;;
+    -abw)
+        ABW=$2
+        shift 2
+        ;;
 
 	*)
 		echo Unknown option $1
@@ -335,7 +340,7 @@ then
 	d2=rtl=RCVR2${buflen}
 		
 	ra_detector_receiver.py -a $ALPHA -p $PORT -1 $FREQ -2 $FREQ  \
-		-l $LONG -r $LRATE -g $DCGAIN -x $EXPNAME $dlogging $slogging &
+		-l $LONG -d $DECLN -r $LRATE -s $SRATE -g $DCGAIN -x $EXPNAME $dlogging $slogging &
 	
 	#
 	# Remember PID, in case we have to kill it
@@ -382,7 +387,7 @@ then
 	d2=rtl=RCVR2${buflen}
 		
 	ra_detector_receiver.py -a $ALPHA -p $PORT -1 $FREQ -2 $FREQ  \
-		-l $LONG -r $LRATE -g $DCGAIN -x $EXPNAME $dlogging $slogging &
+		-l $LONG -d $DECLN -r $LRATE -s $SRATE -g $DCGAIN -x $EXPNAME $dlogging $slogging &
 	
 	#
 	# Remember PID, in case we have to kill it
@@ -422,7 +427,7 @@ then
 	d2=rtl=RCVR2${buflen}
 		
 	ra_detector_receiver.py -a $ALPHA -p $PORT -1 $FREQ -2 $FREQ  \
-		-l $LONG -r $LRATE -g $DCGAIN -x $EXPNAME $dlogging $slogging &
+		-l $LONG -d $DECLN -r $LRATE -s $SRATE -g $DCGAIN -x $EXPNAME $dlogging $slogging &
 	
 	#
 	# Remember PID, in case we have to kill it
@@ -471,7 +476,7 @@ then
 	d2=rtl=1${buflen}
 		
 	ra_pulsar_receiver.py -a $ALPHA -p $PORT -f ${FREQ},${FREQ2}  \
-		-l $LONG -r 90 -x $EXPNAME -n 10 &
+		-l $LONG -d $DECLN -r 90 -s $SRATE -x $EXPNAME -n 10 &
 	
 	#
 	# Remember PID, in case we have to kill it

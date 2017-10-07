@@ -16,7 +16,7 @@ import time
 import math
 import sys
 
-def doit(a,lograte,port,dcgain,frq1,frq2,longit,logf,prefix,legend):
+def doit(a,lograte,port,dcgain,frq1,frq2,longit,decln,logf,prefix,legend):
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -107,7 +107,7 @@ def doit(a,lograte,port,dcgain,frq1,frq2,longit,logf,prefix,legend):
 
 
 
-def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,logf,prefix):
+def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix):
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -125,6 +125,8 @@ def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,logf,prefix):
     x = 0
     then = int(time.time())
     now = then
+    av = [a]*fftsize
+    aav = [1.0-a]*fftsize
     while True:
         for w in [1,2]:
             if w == 1:
@@ -140,26 +142,28 @@ def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,logf,prefix):
                 v = v[nbytes:]
                 toread -= nbytes
 
+        
         f1 = struct.unpack_from('%df' % fftsize, buffer(fft1))
         f2 = struct.unpack_from('%df' % fftsize, buffer(fft2))
         fcnt = fcnt + 1
 
-        avg_fft1 = map(operator.add, f1, avg_fft1)
-        avg_fft2 = map(operator.add, f2, avg_fft2)
+        t1 = map(operator.mul, f1, av)
+        t2 = map(operator.mul, f2, av)
+        
+        tt1 = map(operator.mul, avg_fft1, aav)
+        tt2 = map(operator.mul, avg_fft2, aav)
+        
+        avg_fft1 = map(operator.add, t1, tt1)
+        avg_fft2 = map(operator.add, t2, tt2)
 
         now = int(time.time())
         if (now-then) >= 5:
             if (logf):
-                divisor = [float(fcnt)]*fftsize
-                avg_fft1 = map(operator.div, avg_fft1, divisor)
-                avg_fft2 = map(operator.div, avg_fft2, divisor)
-                logfftdata ([frq1,frq2],[avg_fft1,avg_fft2],longit,lograte,prefix)
-                fcnt = 0
-
+                logfftdata ([frq1,frq2],[avg_fft1,avg_fft2],longit,decln,lograte,srate,prefix)
             then = now
 
 lastfftlogged = time.time()
-def logfftdata (flist,plist,longit,rate,pfx):
+def logfftdata (flist,plist,longit,decln,rate,srate,pfx):
     global lastfftlogged
     global doephem
     t = time.gmtime()
@@ -173,13 +177,16 @@ def logfftdata (flist,plist,longit,rate,pfx):
         return
 
     lastfftlogged = t2
-
+    di = 0
     for x in range(0,len(flist)):
         fn = "%s-%04d%02d%02d-fft-%d.csv" % (pfx, t.tm_year,t.tm_mon,t.tm_mday,x)
         f = open (fn, "a")
         gt = "%02d,%02d,%02d" % (t.tm_hour, t.tm_min, t.tm_sec)
         fweq = "%g" % (flist[x]/1.0e6)
         f.write (gt+","+sid+","+fweq+",")
+        f.write (str(int(srate))+",")
+        f.write(str(decln[di])+",")
+        di += 1
         for i in range((len(plist[x])/2)-1,len(plist[x])):
             y = plist[x]
             f.write("%g" % y[i])
@@ -227,7 +234,7 @@ def cur_sidereal(longitude,val):
     return ((sidt,jdate))
 
 partracker = 0
-def logpwrdata(legend,datavals, frqvals, longit,cs,prefix):
+def logpwrdata(legend,datavals, frqvals, longit,decln,cs,prefix):
     global partracker
     global doephem
     t = time.gmtime()
@@ -243,6 +250,7 @@ def logpwrdata(legend,datavals, frqvals, longit,cs,prefix):
     for x in frqvals:
         sx = "%g" % (x/1.0e6)
         f.write(sx+",")
+    f.write(str(decln)+",")
     f.write(legend+",")
     for x in datavals:
         sx = "%8g" % x
@@ -266,24 +274,34 @@ if __name__ == '__main__':
     parser.add_option ("-q", "--slog", dest="slog", action="store_true", default=False)
     parser.add_option ("-g", "--dgain", dest="dgain", type="float", default=10.0)
     parser.add_option ("-x", "--prefix", dest="prefix", type="string", default="GENERIC")
-    parser.add_option ("-s", "--srate", dest="srate", type="int", default=int(2.56e6))
+    parser.add_option ("-s", "--srate", dest="srate", type="float", default=int(2.56e6))
     parser.add_option ("-e", "--legend", dest="legend", type="string", default="A^2/B^2/A^2-B^2/A*B/CAL")
     parser.add_option ("-z", "--suppress", dest="suppress", action="store_true", default=False)
+    parser.add_option ("-d", "--decln", dest="decln", type="string", default="-99")
 
     (o, args) = parser.parse_args()
 
+    declns = []
+    if "," in o.decln:
+        sd = o.decln.split(",")
+        declns.append(float(sd[0]))
+        declns.append(float(sd[1]))
+    else:
+        fd = float(o.decln)
+        declns = [fd, fd]
+        
     if (o.suppress == False):
         newpid = os.fork()
         if newpid == 0:
-            doit_fft(2048,o.alpha,o.rate*10,o.port+1,o.f1,o.f2,o.srate,o.longit,o.slog,o.prefix)
+            doit_fft(2048,o.alpha,o.rate*10,o.port+1,o.f1,o.f2,o.srate,o.longit,declns,o.slog,o.prefix)
             os.exit(0)
         else:
             f=open("ra_detector_receiver-"+o.prefix+".pid", "w")
             f.write(str(newpid)+"\n")
             f.close()
-            doit(o.alpha,o.rate,o.port,o.dgain,o.f1,o.f2,o.longit,o.log,o.prefix,o.legend)
+            doit(o.alpha,o.rate,o.port,o.dgain,o.f1,o.f2,o.longit,declns,o.log,o.prefix,o.legend)
             os.waitpid(newpid)
 
 
     else:
-        doit(o.alpha,o.rate,o.port,o.dgain,o.f1,o.f2,o.longit,o.log,o.prefix,o.legend)
+        doit(o.alpha,o.rate,o.port,o.dgain,o.f1,o.f2,o.longit,declns,o.log,o.prefix,o.legend)
