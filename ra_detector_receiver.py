@@ -105,9 +105,7 @@ def doit(a,lograte,port,dcgain,frq1,frq2,longit,decln,logf,prefix,legend):
 
             then = now
 
-
-
-def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix):
+def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix,nchan):
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -127,14 +125,15 @@ def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix):
     now = then
     av = [a]*fftsize
     aav = [1.0-a]*fftsize
+    WIREFLOATSZ = 4
     while True:
-        for w in [1,2]:
-            if w == 1:
+        for w in range(0,nchan):
+            if w == 0:
                 v = memoryview(fft1)
-            if w == 2:
+            if w == 1:
                 v = memoryview(fft2)
 
-            toread = fftsize*4
+            toread = fftsize*WIREFLOATSZ
             while toread:
                 nbytes = c.recv_into (v, toread)
                 if nbytes <= 0:
@@ -142,24 +141,25 @@ def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix):
                 v = v[nbytes:]
                 toread -= nbytes
 
-        
-        f1 = struct.unpack_from('%df' % fftsize, buffer(fft1))
-        f2 = struct.unpack_from('%df' % fftsize, buffer(fft2))
         fcnt = fcnt + 1
-
+        f1 = struct.unpack_from('%df' % fftsize, buffer(fft1))
         t1 = map(operator.mul, f1, av)
-        t2 = map(operator.mul, f2, av)
-        
         tt1 = map(operator.mul, avg_fft1, aav)
-        tt2 = map(operator.mul, avg_fft2, aav)
-        
         avg_fft1 = map(operator.add, t1, tt1)
-        avg_fft2 = map(operator.add, t2, tt2)
+
+        if (nchan == 2):
+            f2 = struct.unpack_from('%df' % fftsize, buffer(fft2))
+            t2 = map(operator.mul, f2, av)
+            tt2 = map(operator.mul, avg_fft2, aav)
+            avg_fft2 = map(operator.add, t2, tt2)
 
         now = int(time.time())
         if (now-then) >= 5:
             if (logf):
-                logfftdata ([frq1,frq2],[avg_fft1,avg_fft2],longit,decln,lograte,srate,prefix)
+                if (nchan == 2):
+                    logfftdata ([frq1,frq2],[avg_fft1,avg_fft2],longit,decln,lograte,srate,prefix)
+                else:
+                    logfftdata ([frq1], [avg_fft1],longit,decln,lograte,srate,prefix)
             then = now
 
 lastfftlogged = time.time()
@@ -278,8 +278,13 @@ if __name__ == '__main__':
     parser.add_option ("-e", "--legend", dest="legend", type="string", default="A^2/B^2/A^2-B^2/A*B/CAL")
     parser.add_option ("-z", "--suppress", dest="suppress", action="store_true", default=False)
     parser.add_option ("-d", "--decln", dest="decln", type="string", default="-99")
+    parser.add_option ("-f", "--fftsize", dest="fftsize", type="int", defalt=2048)
+    parser.add_option ("-c", "--nchan", dest="nchan", type="int", default=2)
 
     (o, args) = parser.parse_args()
+    
+    if o.nchan <= 0 or o.nchan > 2:
+		raise ValueError("nchan must in in the range 1-2")
 
     declns = []
     if "," in o.decln:
@@ -293,7 +298,7 @@ if __name__ == '__main__':
     if (o.suppress == False):
         newpid = os.fork()
         if newpid == 0:
-            doit_fft(2048,o.alpha,o.rate*10,o.port+1,o.f1,o.f2,o.srate,o.longit,declns,o.slog,o.prefix)
+            doit_fft(o.fftsize,o.alpha,o.rate*10,o.port+1,o.f1,o.f2,o.srate,o.longit,declns,o.slog,o.prefix,o.nchan)
             os.exit(0)
         else:
             f=open("ra_detector_receiver-"+o.prefix+".pid", "w")
