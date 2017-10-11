@@ -53,7 +53,7 @@ $umsg
 -s <samp_rate>       Set sample-rate, in Hz
 -n <expname>         Set experiment name
 -h <host>            Talk to Odroid at given address/name
--t <type>            Set experiment type: must be 'corrint', 'differential', 'pulsar', 'specline', 'addint'
+-t <type>            Set experiment type: must be 'corrint', 'differential', 'pulsar', 'specline', 'addint', etc
 -l <long>            Set experiment geographic longitude (for LMST)
 -dec <decln>         Set declination for this run
 -d <dbw>             Set detector filter bandwidth, in Hz (differential only)
@@ -248,11 +248,14 @@ fi
 #
 # Check for correct experiment type
 #
-if [ $TYPE != differential -a $TYPE != corrint -a $TYPE != pulsar  -a $TYPE != specline -a $TYPE != addint ]
-then
-	echo option -t must be either "'differential'" or "'corrint'" or "'pulsar'" or "'specline'" or "'addint'"
+case $TYPE in
+
+	differential|correint|pulsar|specline|addint|hydrogen)
+	;;
+	*)
+	echo "Unknown experiment type: " $TYPE
 	exit 0
-fi
+esac
 
 #
 # Find out what the local address is of our primary ethernet interface
@@ -359,6 +362,40 @@ then
 	#
 	kill -1 $PID >/dev/null 2>&1
 	killer $RNAME
+fi
+
+#
+# Dual-channel hydrogen via a pair of odroids, each with their own AirSpy
+#
+# We get only a single channel of (high resolution) spectral data per odroid host
+#
+if [ $type = hydrogen ]
+then
+	RNAME=hydrogen_sender.py
+		
+	ra_detector_receiver.py -a $ALPHA -p $PORT -1 $FREQ -2 $FREQ  \
+		-l $LONG -d $DECLN -r $LRATE -s $SRATE -g $DCGAIN -x $EXPNAME $dlogging $slogging --nhost 2 --nchan 1 \
+		--fftsize 16384 &
+	
+	#
+	# Remember PID, in case we have to kill it
+	#
+	PID=$!
+	trap "(kill -1 $PID; sleep 1; kill -9 $PID; killer $RNAME; exit 0) >/dev/null 2>&1" 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
+	
+	sshpass -p astronomer ssh astronomer@$HOST "rm -f .gr_fftw_wisdom"
+	
+	cmd="$RNAME --gain $GAIN  --f1 $FREQ --f2 $FREQ2  --abw $ABW --host $inaddr --port $PORT --srate $SRATE --dbw $BANDWIDTH --fg1 $FG1 --fg2 $FG2 --cdev $CDEV --udev airspy,pack=1 --fftsize 16384"
+	echo Running remote command: "$cmd"
+	sshpass -p astronomer ssh astronomer@$HOST "source ~/.bashrc; psycho_killer.py astronomer $RNAME; sleep 2; $cmd"
+	
+	#
+	# If we get here, kill background recorder task
+	#
+	kill -1 $PID >/dev/null 2>&1
+	killer $RNAME
+fi
+
 fi
 
 #

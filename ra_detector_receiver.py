@@ -216,10 +216,10 @@ def logfftdata (flist,plist,longit,decln,rate,srate,pfx):
     # MUST be 1:1 correspondence between flist and plist
     #
     for x in range(0,len(flist)):
-		
-		#
-		# Construct filename
-		#
+        
+        #
+        # Construct filename
+        #
         fn = "%s-%04d%02d%02d-fft-%d.csv" % (pfx, t.tm_year,t.tm_mon,t.tm_mday,x)
         f = open (fn, "a")
         
@@ -261,20 +261,15 @@ def logfftdata (flist,plist,longit,decln,rate,srate,pfx):
         f.write ("\n")
         f.close()
 
-def shift(seq, n, v):
-    l = len(seq)
-    x = [v]+seq[n-1:l-1]
-    return x
-
-def writefile(dat,fn,incr):
-    f = open ("tmptp.dat", "w")
-    for q in range(0,len(dat)):
-        s = "%d %f\n" % (q*incr,dat[q])
-        f.write(s)
-    f.close()
-    os.rename ("tmptp.dat", fn)
-
+#
+# Determine current sidereal time
+#
+# Use the "ephem" Python library
+#
 def cur_sidereal(longitude,val):
+    #
+    # Convert longitude into format preferred by 'ephem' library
+    #
     longstr = "%02d" % int(longitude)
     longstr = longstr + ":"
     longitude = abs(longitude)
@@ -283,29 +278,61 @@ def cur_sidereal(longitude,val):
     mins = int(frac)
     longstr += "%02d" % mins
     longstr += ":00"
+    
+    #
+    # Now get an observer object
+    #
     x = ephem.Observer()
+    
+    #
+    # Tell it that we're going to base everything on "today"
+    #
     x.date = ephem.now()
     x.long = longstr
+    
+    #
+    # Get the julian date, given the above
+    #
     jdate = ephem.julian_date(x)
+    
+    #
+    # Get sidereal time, turn into a list
+    #
     tokens=str(x.sidereal_time()).split(":")
     hours=int(tokens[0])
     minutes=int(tokens[1])
     seconds=int(float(tokens[2]))
+    
+    #
+    # Return in csv format
+    #
     sidt = "%02d,%02d,%02d" % (hours, minutes, seconds)
     return ((sidt,jdate))
 
-partracker = 0
 def logpwrdata(legend,datavals, frqvals, longit,decln,cs,prefix):
-    global partracker
     global doephem
     t = time.gmtime()
     if (doephem):
         st = cur_sidereal(longit,0)[0]
     else:
         st = "??,??,??"
+        
+    
+    #
+    # Form filename
+    #
     fn = "%s-%04d%02d%02d.csv" % (prefix, t.tm_year,t.tm_mon,t.tm_mday)
+    
+    #
+    # Get UTC
+    #
     gt = "%02d,%02d,%02d" % (t.tm_hour,t.tm_min,t.tm_sec)
+    
     f = open (fn, "a")
+    
+    #
+    # Write out header goo
+    #
     ls = gt+","+st+","
     f.write(ls)
     for x in frqvals:
@@ -313,12 +340,15 @@ def logpwrdata(legend,datavals, frqvals, longit,decln,cs,prefix):
         f.write(sx+",")
     f.write(str(decln)+",")
     f.write(legend+",")
+    
+    #
+    # Write out data values
+    #
     for x in datavals:
         sx = "%8g" % x
         f.write (sx+",")
     f.write("%d" % cs)
     f.write ("\n")
-    partracker -= 1
     f.close()
 
     return
@@ -349,16 +379,27 @@ if __name__ == '__main__':
         raise ValueError("nchan must be 1 or 2")
 
     declns = []
+    
+    #
+    # Build list of declinations
+    #
     if "," in o.decln:
         sd = o.decln.split(",")
-        declns.append(float(sd[0]))
-        declns.append(float(sd[1]))
+        for d in sd:
+            declns.append(float(d))
     else:
         fd = float(o.decln)
-        declns = [fd, fd]
-        
+        declns = [fd]*(o.nhost*o.nchan)
+    
+    #
+    # The whole "suppress" thing needs to be re-thought
+    #   
     if (o.suppress == False):
         newpid = os.fork()
+        
+        #
+        # We run FFT logging in a separate process
+        #
         if newpid == 0:
             doit_fft(o.fftsize,o.alpha,o.rate*10,o.port+1,o.f1,o.f2,o.srate,o.longit,declns,o.slog,o.prefix,o.nchan,o.nhost)
             os.exit(0)
