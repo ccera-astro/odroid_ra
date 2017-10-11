@@ -105,63 +105,94 @@ def doit(a,lograte,port,dcgain,frq1,frq2,longit,decln,logf,prefix,legend):
 
             then = now
 
-def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix,nchan):
+def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix,nchan,nhost):
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     host = "0.0.0.0"
     sock.bind ((host,port))
     sock.listen(1)
-    c, addr = sock.accept()
+    
+    cfds = []
+    addrs = []
+    
+    #
+    # Accept as many connections as our caller specied
+    #
+    for i in range(0,nhost):
+        c, addr = sock.accept()
+        cfds.append(c)
+        addrs.append(addr)
 
+    #
+    # FFT counter, for averaging
+    #
     fcnt = 0
-    avg_fft1 = [0.0]*fftsize
-    avg_fft2 = [0.0]*fftsize
+    
+    #
+    # Our list of FFT averages
+    #
+    # There'll be nhost * nchan of them
+    #
+    avg_ffts = []
+    ffts = []
+    
+    #
+    # Single-precision FP on the wire
+    #
+    WIREFLOATSZ = 4
+    
+    for i in range(0,nhost*nchan):
+        avg_ffts.append([0.8] * fftsize)
+        ffts.append(bytearray(fftsize*WIREFLOATSZ))
 
-    fft1 = bytearray(fftsize*4)
-    fft2 = bytearray(fftsize*4)
     x = 0
     then = int(time.time())
     now = then
-    av = [a]*fftsize
-    aav = [1.0-a]*fftsize
-    WIREFLOATSZ = 4
-    while True:
-        for w in range(0,nchan):
-            if w == 0:
-                v = memoryview(fft1)
-            if w == 1:
-                v = memoryview(fft2)
+    alpha_vect = [a]*fftsize
+    beta_vect = [1.0-a]*fftsize
 
-            toread = fftsize*WIREFLOATSZ
-            while toread:
-                nbytes = c.recv_into (v, toread)
-                if nbytes <= 0:
-                     sys.exit()
-                v = v[nbytes:]
-                toread -= nbytes
+
+    #
+    # Forever, read data from remote host(s).
+    # Each data chunk will be "nchans" of interleaved FFT data
+    #
+    while True:
+        for h in range(0,nhost):
+            for c in range(0,nchan):
+
+                #
+                # Figure out which FFT to read into
+                #  get a memoryview of it
+                #
+                ndx = (h * nchan) + c
+                v = memoryview(ffts[ndx])
+
+                toread = fftsize*WIREFLOATSZ
+                while toread:
+                    nbytes = cfds[h].recv_into (v, toread)
+                    if nbytes <= 0:
+                         sys.exit()
+                    v = v[nbytes:]
+                    toread -= nbytes
 
         fcnt = fcnt + 1
-        f1 = struct.unpack_from('%df' % fftsize, buffer(fft1))
-        t1 = map(operator.mul, f1, av)
-        tt1 = map(operator.mul, avg_fft1, aav)
-        avg_fft1 = map(operator.add, t1, tt1)
-
-        if (nchan == 2):
-            f2 = struct.unpack_from('%df' % fftsize, buffer(fft2))
-            t2 = map(operator.mul, f2, av)
-            tt2 = map(operator.mul, avg_fft2, aav)
-            avg_fft2 = map(operator.add, t2, tt2)
+        
+        for nx in range(0,len(ffts)):
+            f1 = struct.unpack_from('%df' % fftsize, buffer(ffts[nx]))
+            t1 = map(operator.mul, f1, alpha_vect)
+            tt1 = map(operator.mul, avg_ffts[nx], beta_vect)
+            avg_ffts[nx] = map(operator.add, t1, tt1)
 
         now = int(time.time())
         if (now-then) >= 5:
             if (logf):
-                if (nchan == 2):
-                    logfftdata ([frq1,frq2],[avg_fft1,avg_fft2],longit,decln,lograte,srate,prefix)
-                else:
-                    logfftdata ([frq1], [avg_fft1],longit,decln,lograte,srate,prefix)
+                logfftdata ([frq1]*len(avg_ffts),avg_ffts,longit,decln,lograte,srate,prefix)
             then = now
 
+#
+# Remember last time we logged FFT data
+#
 lastfftlogged = time.time()
 def logfftdata (flist,plist,longit,decln,rate,srate,pfx):
     global lastfftlogged
@@ -172,21 +203,51 @@ def logfftdata (flist,plist,longit,decln,rate,srate,pfx):
     else:
         sid = "??,??,??"
 
+    #
+    # Not time for it yet, buddy
+    #
     t2 = time.time()
     if ((t2 - lastfftlogged) < rate):
         return
 
     lastfftlogged = t2
     di = 0
+    #
+    # MUST be 1:1 correspondence between flist and plist
+    #
     for x in range(0,len(flist)):
+		
+		#
+		# Construct filename
+		#
         fn = "%s-%04d%02d%02d-fft-%d.csv" % (pfx, t.tm_year,t.tm_mon,t.tm_mday,x)
         f = open (fn, "a")
+        
+        #
+        # Determine GMT (UTC) time
+        #
         gt = "%02d,%02d,%02d" % (t.tm_hour, t.tm_min, t.tm_sec)
+        
+        #
+        # Scale frequency into MHz
+        #
         fweq = "%g" % (flist[x]/1.0e6)
+        
+        #
+        # Write header stuff
+        #
         f.write (gt+","+sid+","+fweq+",")
         f.write (str(int(srate))+",")
         f.write(str(decln[di])+",")
+        
+        #
+        # Bumpeth the declination index
+        #
         di += 1
+        
+        #
+        # Write out the FFT data
+        #
         for i in range((len(plist[x])/2)-1,len(plist[x])):
             y = plist[x]
             f.write("%g" % y[i])
@@ -280,11 +341,12 @@ if __name__ == '__main__':
     parser.add_option ("-d", "--decln", dest="decln", type="string", default="-99")
     parser.add_option ("-f", "--fftsize", dest="fftsize", type="int", defalt=2048)
     parser.add_option ("-c", "--nchan", dest="nchan", type="int", default=2)
+    parser.add_option ("-x", "--nhost", dest="nhost", type="int", default=1)
 
     (o, args) = parser.parse_args()
     
     if o.nchan <= 0 or o.nchan > 2:
-		raise ValueError("nchan must in in the range 1-2")
+        raise ValueError("nchan must be 1 or 2")
 
     declns = []
     if "," in o.decln:
@@ -298,7 +360,7 @@ if __name__ == '__main__':
     if (o.suppress == False):
         newpid = os.fork()
         if newpid == 0:
-            doit_fft(o.fftsize,o.alpha,o.rate*10,o.port+1,o.f1,o.f2,o.srate,o.longit,declns,o.slog,o.prefix,o.nchan)
+            doit_fft(o.fftsize,o.alpha,o.rate*10,o.port+1,o.f1,o.f2,o.srate,o.longit,declns,o.slog,o.prefix,o.nchan,o.nhost)
             os.exit(0)
         else:
             f=open("ra_detector_receiver-"+o.prefix+".pid", "w")
