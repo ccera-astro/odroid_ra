@@ -250,7 +250,7 @@ fi
 #
 case $TYPE in
 
-	differential|correint|pulsar|specline|addint|hydrogen)
+	differential|corrint|pulsar|specline|addint|hydrogen)
 	;;
 	*)
 	echo "Unknown experiment type: " $TYPE
@@ -367,6 +367,9 @@ fi
 #
 # Dual-channel hydrogen via a pair of odroids, each with their own AirSpy
 #
+# The AirSpy are locked to either an internal OCXO/Rb source, or an external
+#   GPSDO, giving very precise doppler information.
+#
 # We get only a single channel of (high resolution) spectral data per odroid host
 #
 if [ $type = hydrogen ]
@@ -377,18 +380,56 @@ then
 		-l $LONG -d $DECLN -r $LRATE -s $SRATE -g $DCGAIN -x $EXPNAME $dlogging $slogging --nhost 2 --nchan 1 \
 		--fftsize 16384 &
 	
+	
+    PID=$!
+	trap "(kill -1 $PID; sleep 1; kill -9 $PID; killer $RNAME; exit 0) >/dev/null 2>&1" 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
+	
 	#
 	# Remember PID, in case we have to kill it
 	#
-	PID=$!
-	trap "(kill -1 $PID; sleep 1; kill -9 $PID; killer $RNAME; exit 0) >/dev/null 2>&1" 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
+	PIDLIST=""
+	pidcnt=0
+	for ht in `echo $HOST|sed -e s/,/ /g`
+	do
+		sshpass -p astronomer ssh astronomer@$ht "rm -f .gr_fftw_wisdom"
+		cmd="$RNAME --gain $GAIN  --f1 $FREQ --f2 $FREQ2  --abw $ABW --host $inaddr --port $PORT --srate $SRATE --dbw $BANDWIDTH --fg1 $FG1 --fg2 $FG2 --cdev $CDEV --udev airspy,pack=1 --fftsize 16384"
+		echo Running remote command: "$cmd"
+		echo ....ON HOST $ht
+		sshpass -p astronomer ssh astronomer@$ht "source ~/.bashrc; psycho_killer.py astronomer $RNAME; sleep 2; $cmd" &
+		PIDLIST="$PIDLIST $!"
+		pidcnt=`expr $pidcnt + 1`
+	done
+	PIDLIST="$PIDLIST $PID"
 	
-	sshpass -p astronomer ssh astronomer@$HOST "rm -f .gr_fftw_wisdom"
-	
-	cmd="$RNAME --gain $GAIN  --f1 $FREQ --f2 $FREQ2  --abw $ABW --host $inaddr --port $PORT --srate $SRATE --dbw $BANDWIDTH --fg1 $FG1 --fg2 $FG2 --cdev $CDEV --udev airspy,pack=1 --fftsize 16384"
-	echo Running remote command: "$cmd"
-	sshpass -p astronomer ssh astronomer@$HOST "source ~/.bashrc; psycho_killer.py astronomer $RNAME; sleep 2; $cmd"
-	
+	#
+	# We must now deal with the fact that we have multiple
+	#   processes outstanding
+	# Both the recorder task, and each of the remote Gnu Radio tasks
+	#
+	while : 
+	do
+	    cnt=0
+	    STILLWAITING=""
+	    for pid in $PIDLIST
+	    do
+			if kill -0 $pid 2>/dev/null
+			then
+				A=A
+				STILLWAITING="$STILLWAITING $pid"
+			else
+				cnt=`expr cnt + 1`
+			fi
+		done
+		if [ $pidcnt -eq $cnt ]
+		then
+		    echo All processes have now exited: $PIDLIST
+			break
+		else
+			echo Still waiting on $STILLWAITING
+		fi
+		sleep 5.0
+	done
+		
 	#
 	# If we get here, kill background recorder task
 	#
