@@ -250,12 +250,12 @@ def logfftdata (flist,plist,longit,decln,rate,srate,pfx):
         #
         for i in range((len(plist[x])/2)-1,len(plist[x])):
             y = plist[x]
-            f.write("%g" % y[i])
+            f.write("%-6.2f" % y[i])
             if (i < len(plist[x])-1):
                 f.write(",")
         for i in range(0,len(plist[x])/2):
             y = plist[x]
-            f.write("%g" % y[i])
+            f.write("%-6.2f" % y[i])
             if (i < (len(plist[x])/2)-1):
                 f.write(",")
         f.write ("\n")
