@@ -93,103 +93,6 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(416, 1115)</value>
-    </param>
-    <param>
-      <key>_rotation</key>
-      <value>0</value>
-    </param>
-    <param>
-      <key>id</key>
-      <value>calstate</value>
-    </param>
-    <param>
-      <key>value</key>
-      <value>rsu.calib_onoff_auto(tick, cdev, 19200, cinit, con, coff, "\r", 3600,45)</value>
-    </param>
-  </block>
-  <block>
-    <key>variable</key>
-    <param>
-      <key>comment</key>
-      <value></value>
-    </param>
-    <param>
-      <key>_enabled</key>
-      <value>True</value>
-    </param>
-    <param>
-      <key>_coordinate</key>
-      <value>(1224, 701)</value>
-    </param>
-    <param>
-      <key>_rotation</key>
-      <value>0</value>
-    </param>
-    <param>
-      <key>id</key>
-      <value>det_corrections</value>
-    </param>
-    <param>
-      <key>value</key>
-      <value>rsu.update_corrections(det_vecs)</value>
-    </param>
-  </block>
-  <block>
-    <key>variable_function_probe</key>
-    <param>
-      <key>block_id</key>
-      <value>det_vec_probe</value>
-    </param>
-    <param>
-      <key>comment</key>
-      <value></value>
-    </param>
-    <param>
-      <key>_enabled</key>
-      <value>True</value>
-    </param>
-    <param>
-      <key>function_args</key>
-      <value></value>
-    </param>
-    <param>
-      <key>function_name</key>
-      <value>level</value>
-    </param>
-    <param>
-      <key>_coordinate</key>
-      <value>(1072, 704)</value>
-    </param>
-    <param>
-      <key>_rotation</key>
-      <value>0</value>
-    </param>
-    <param>
-      <key>id</key>
-      <value>det_vecs</value>
-    </param>
-    <param>
-      <key>value</key>
-      <value>[0.0,0.0]</value>
-    </param>
-    <param>
-      <key>poll_rate</key>
-      <value>0.5</value>
-    </param>
-  </block>
-  <block>
-    <key>variable</key>
-    <param>
-      <key>comment</key>
-      <value></value>
-    </param>
-    <param>
-      <key>_enabled</key>
-      <value>True</value>
-    </param>
-    <param>
-      <key>_coordinate</key>
       <value>(248, 1115)</value>
     </param>
     <param>
@@ -256,7 +159,34 @@
     </param>
     <param>
       <key>value</key>
-      <value>100</value>
+      <value>50</value>
+    </param>
+  </block>
+  <block>
+    <key>variable</key>
+    <param>
+      <key>comment</key>
+      <value></value>
+    </param>
+    <param>
+      <key>_enabled</key>
+      <value>True</value>
+    </param>
+    <param>
+      <key>_coordinate</key>
+      <value>(1352, 284)</value>
+    </param>
+    <param>
+      <key>_rotation</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>id</key>
+      <value>outrate</value>
+    </param>
+    <param>
+      <key>value</key>
+      <value>5</value>
     </param>
   </block>
   <block>
@@ -378,49 +308,6 @@
     <param>
       <key>value</key>
       <value>srate</value>
-    </param>
-  </block>
-  <block>
-    <key>variable_function_probe</key>
-    <param>
-      <key>block_id</key>
-      <value>cal_probe</value>
-    </param>
-    <param>
-      <key>comment</key>
-      <value></value>
-    </param>
-    <param>
-      <key>_enabled</key>
-      <value>True</value>
-    </param>
-    <param>
-      <key>function_args</key>
-      <value></value>
-    </param>
-    <param>
-      <key>function_name</key>
-      <value>level</value>
-    </param>
-    <param>
-      <key>_coordinate</key>
-      <value>(928, 699)</value>
-    </param>
-    <param>
-      <key>_rotation</key>
-      <value>0</value>
-    </param>
-    <param>
-      <key>id</key>
-      <value>tick</value>
-    </param>
-    <param>
-      <key>value</key>
-      <value>0</value>
-    </param>
-    <param>
-      <key>poll_rate</key>
-      <value>1</value>
     </param>
   </block>
   <block>
@@ -557,7 +444,7 @@
     </param>
     <param>
       <key>n</key>
-      <value>int(frate/10)</value>
+      <value>int(frate/outrate)</value>
     </param>
     <param>
       <key>type</key>
@@ -1234,7 +1121,7 @@
     </param>
     <param>
       <key>sample_rate</key>
-      <value>samp_rate</value>
+      <value>2.5e6</value>
     </param>
   </block>
   <block>
@@ -1257,11 +1144,11 @@
     </param>
     <param>
       <key>cutoff_freq</key>
-      <value>0.9e6</value>
+      <value>1.1e6</value>
     </param>
     <param>
       <key>decim</key>
-      <value>int(samp_rate/2.0e6)</value>
+      <value>int(samp_rate/2.5e6)</value>
     </param>
     <param>
       <key>_enabled</key>
@@ -1305,7 +1192,7 @@
     </param>
     <param>
       <key>width</key>
-      <value>25e3</value>
+      <value>200e3</value>
     </param>
     <param>
       <key>win</key>
@@ -1359,7 +1246,7 @@
     </param>
     <param>
       <key>bw0</key>
-      <value>samp_rate*0.85 if abw &lt; 0.0 else abw</value>
+      <value>samp_rate</value>
     </param>
     <param>
       <key>dc_offset_mode0</key>

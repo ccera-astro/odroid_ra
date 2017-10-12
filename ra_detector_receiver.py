@@ -369,9 +369,9 @@ if __name__ == '__main__':
     parser.add_option ("-e", "--legend", dest="legend", type="string", default="A^2/B^2/A^2-B^2/A*B/CAL")
     parser.add_option ("-z", "--suppress", dest="suppress", action="store_true", default=False)
     parser.add_option ("-d", "--decln", dest="decln", type="string", default="-99")
-    parser.add_option ("-f", "--fftsize", dest="fftsize", type="int", defalt=2048)
+    parser.add_option ("-f", "--fftsize", dest="fftsize", type="int", default=2048)
     parser.add_option ("-c", "--nchan", dest="nchan", type="int", default=2)
-    parser.add_option ("-x", "--nhost", dest="nhost", type="int", default=1)
+    parser.add_option ("-t", "--nhost", dest="nhost", type="int", default=1)
 
     (o, args) = parser.parse_args()
     

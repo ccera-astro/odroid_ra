@@ -38,7 +38,11 @@ function killer
 		kill -1 `cat ra_detector_receiver-$EXPNAME.pid` >/dev/null 2>&1
 		rm -f ra_detector_receiver-$EXPNAME.pid
 	fi
-	sshpass -p astronomer ssh astronomer@$HOST "source ~/.bashrc; psycho_killer.py astronomer $1"
+	htl=`echo $HOST|sed -e 's/,/ /g'`
+	for ht in $htl
+	do
+		sshpass -p astronomer ssh astronomer@$ht "source ~/.bashrc; psycho_killer.py astronomer $1"
+	done
 }
 	
 function print_help
@@ -262,7 +266,12 @@ esac
 #   by sending a command over to the target odroid that tells us where we're
 #   calling from.
 #
-inaddr=`sshpass -p astronomer ssh astronomer@$HOST "printenv |grep SSH_CLIENT|sed -e 's/.*=//'|sed -e 's/ .*//'"`
+hosts=`echo $HOST|sed -e 's/,/ /g'`
+for ht in $hosts
+do
+	curh=$ht
+done
+inaddr=`sshpass -p astronomer ssh astronomer@$curh "printenv |grep SSH_CLIENT|sed -e 's/.*=//'|sed -e 's/ .*//'"`
 
 echo Establishing session with Odroid at $HOST
 echo Data will be sent back to ${inaddr}:$PORT
@@ -372,13 +381,13 @@ fi
 #
 # We get only a single channel of (high resolution) spectral data per odroid host
 #
-if [ $type = hydrogen ]
+if [ $TYPE = hydrogen ]
 then
 	RNAME=hydrogen_sender.py
 		
 	ra_detector_receiver.py -a $ALPHA -p $PORT -1 $FREQ -2 $FREQ  \
 		-l $LONG -d $DECLN -r $LRATE -s $SRATE -g $DCGAIN -x $EXPNAME $dlogging $slogging --nhost 2 --nchan 1 \
-		--fftsize 16384 &
+		--fftsize 32768 &
 	
 	
     PID=$!
@@ -389,10 +398,10 @@ then
 	#
 	PIDLIST=""
 	pidcnt=0
-	for ht in `echo $HOST|sed -e s/,/ /g`
+	for ht in `echo $HOST|sed -e 's/,/ /g'`
 	do
 		sshpass -p astronomer ssh astronomer@$ht "rm -f .gr_fftw_wisdom"
-		cmd="$RNAME --gain $GAIN  --f1 $FREQ --f2 $FREQ2  --abw $ABW --host $inaddr --port $PORT --srate $SRATE --dbw $BANDWIDTH --fg1 $FG1 --fg2 $FG2 --cdev $CDEV --udev airspy,pack=1 --fftsize 16384"
+		cmd="$RNAME --gain $GAIN  --f1 $FREQ --f2 $FREQ2  --abw $ABW --host $inaddr --port $PORT --srate $SRATE --dbw $BANDWIDTH --fg1 $FG1 --fg2 $FG2 --cdev $CDEV --udev airspy,pack=1 --fftsize 32768"
 		echo Running remote command: "$cmd"
 		echo ....ON HOST $ht
 		sshpass -p astronomer ssh astronomer@$ht "source ~/.bashrc; psycho_killer.py astronomer $RNAME; sleep 2; $cmd" &
@@ -400,6 +409,7 @@ then
 		pidcnt=`expr $pidcnt + 1`
 	done
 	PIDLIST="$PIDLIST $PID"
+	pidcnt=`expr $pidcnt + 1`
 	
 	#
 	# We must now deal with the fact that we have multiple
@@ -417,15 +427,15 @@ then
 				A=A
 				STILLWAITING="$STILLWAITING $pid"
 			else
-				cnt=`expr cnt + 1`
+				cnt=`expr $cnt + 1`
 			fi
 		done
-		if [ $pidcnt -eq $cnt ]
+		if [ $cnt -ge $pidcnt ]
 		then
 		    echo All processes have now exited: $PIDLIST
 			break
 		else
-			echo Still waiting on $STILLWAITING
+			a=a
 		fi
 		sleep 5.0
 	done
@@ -434,9 +444,11 @@ then
 	# If we get here, kill background recorder task
 	#
 	kill -1 $PID >/dev/null 2>&1
+	for p in $PIDLIST
+	do
+		kill -1 $PID >/dev/null 2>&1
+	done
 	killer $RNAME
-fi
-
 fi
 
 #
