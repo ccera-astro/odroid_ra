@@ -159,7 +159,7 @@
     </param>
     <param>
       <key>value</key>
-      <value>30</value>
+      <value>36</value>
     </param>
   </block>
   <block>
@@ -1192,7 +1192,7 @@
     </param>
     <param>
       <key>width</key>
-      <value>200e3</value>
+      <value>280e3</value>
     </param>
     <param>
       <key>win</key>
