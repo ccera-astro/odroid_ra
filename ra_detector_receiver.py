@@ -117,7 +117,7 @@ def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix,nch
     addrs = []
     
     #
-    # Accept as many connections as our caller specied
+    # Accept as many connections as our caller specified
     #
     for i in range(0,nhost):
         c, addr = sock.accept()
@@ -143,7 +143,7 @@ def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix,nch
     WIREFLOATSZ = 4
     
     for i in range(0,nhost*nchan):
-        avg_ffts.append([0.8] * fftsize)
+        avg_ffts.append([0.0] * fftsize)
         ffts.append(bytearray(fftsize*WIREFLOATSZ))
 
     x = 0
