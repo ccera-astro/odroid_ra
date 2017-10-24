@@ -186,7 +186,7 @@
     </param>
     <param>
       <key>value</key>
-      <value>200/(fftsize/2048)</value>
+      <value>400/(fftsize/2048)</value>
     </param>
   </block>
   <block>
