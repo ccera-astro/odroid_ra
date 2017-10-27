@@ -413,6 +413,14 @@ then
 		sshpass -p astronomer ssh astronomer@$ht "source ~/.bashrc; psycho_killer.py astronomer $RNAME; sleep 2; $cmd" &
 		PIDLIST="$PIDLIST $!"
 		pidcnt=`expr $pidcnt + 1`
+		#
+		# A desperate hack to assure conenction-order into ra_detector_receiver.py
+		# There is a race condition where the receiver code cannot reliably identify which connection is which, so
+		# it can be logging under the wrong identifier.
+		#
+		# This hack will (usually) make certain that the connection-order is satisfied.
+		#
+		sleep 1.25
 	done
 	PIDLIST="$PIDLIST $PID"
 	pidcnt=`expr $pidcnt + 1`
