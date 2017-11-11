@@ -31,6 +31,7 @@ LRATE=2
 IFREQ=1353e6
 DECLN=-99
 FFTSIZE=2048
+OFFSET=0.0
 
 function killer
 {
@@ -79,6 +80,7 @@ $umsg
 -hp <time>           Set time-constant for high-pass filter in 'addint' (def: $HPASS)
 -abw <bw>            Set front-end analog bandwidth
 -fft                 Set FFT size
+-offs                Set frequency offset
 !EOF!
 }
 umsg="Usage: run_odroid -f freq -g gain -s srate -n exp-name -t type -h host -l longitude -d dbw"
@@ -213,6 +215,10 @@ do
         FFTSIZE=$2
         shift 2
         ;;
+    -offs)
+		OFFSET=$2
+		shift 2
+		;;
 
 	*)
 		echo Unknown option $1
@@ -392,7 +398,7 @@ then
 	RNAME=hydrogen_sender.py
 		
 	ra_detector_receiver.py -a $ALPHA -p $PORT -1 $FREQ -2 $FREQ  \
-		-l $LONG -d $DECLN -r $LRATE -s 2.5e6 -g $DCGAIN -x $EXPNAME $dlogging $slogging --nhost 2 --nchan 1 \
+		-l $LONG -d $DECLN -r $LRATE -s 2.5e6 -g $DCGAIN -x $EXPNAME $dlogging $slogging --nhost 2 --nchan 1 --hostlist $HOST \
 		--fftsize $FFTSIZE &
 	
 	
@@ -407,7 +413,7 @@ then
 	for ht in `echo $HOST|sed -e 's/,/ /g'`
 	do
 		sshpass -p astronomer ssh astronomer@$ht "rm -f .gr_fftw_wisdom"
-		cmd="$RNAME --gain $GAIN  --f1 $FREQ --f2 $FREQ2  --abw $ABW --host $inaddr --port $PORT --srate $SRATE --dbw $BANDWIDTH --fg1 $FG1 --fg2 $FG2 --cdev $CDEV --udev $UDEV --fftsize $FFTSIZE"
+		cmd="$RNAME --gain $GAIN  --f1 $FREQ --f2 $FREQ2  --abw $ABW --host $inaddr --port $PORT --srate $SRATE --dbw $BANDWIDTH --fg1 $FG1 --fg2 $FG2 --cdev $CDEV --udev $UDEV --fftsize $FFTSIZE --offset $OFFSET"
 		echo Running remote command: "$cmd"
 		echo ....ON HOST $ht
 		sshpass -p astronomer ssh astronomer@$ht "source ~/.bashrc; psycho_killer.py astronomer $RNAME; sleep 2; $cmd" &

@@ -105,7 +105,7 @@ def doit(a,lograte,port,dcgain,frq1,frq2,longit,decln,logf,prefix,legend):
 
             then = now
 
-def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix,nchan,nhost):
+def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix,nchan,nhost,hlist):
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -116,14 +116,19 @@ def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix,nch
     cfds = []
     addrs = []
     
+    hdict = {}
+    for i in range(0,len(hlist)):
+        hdict[hlist[i]] = i
+    
+    
     #
     # Accept as many connections as our caller specified
     #
     for i in range(0,nhost):
         c, addr = sock.accept()
         cfds.append(c)
-        addrs.append(addr)
-
+        addrs.append(addr[0])
+ 
     #
     # FFT counter, for averaging
     #
@@ -165,7 +170,8 @@ def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix,nch
                 # Figure out which FFT to read into
                 #  get a memoryview of it
                 #
-                ndx = (h * nchan) + c
+                hind = hdict[addrs[h]]
+                ndx = (hind * nchan) + c
                 v = memoryview(ffts[ndx])
 
                 toread = fftsize*WIREFLOATSZ
@@ -372,6 +378,7 @@ if __name__ == '__main__':
     parser.add_option ("-f", "--fftsize", dest="fftsize", type="int", default=2048)
     parser.add_option ("-c", "--nchan", dest="nchan", type="int", default=2)
     parser.add_option ("-t", "--nhost", dest="nhost", type="int", default=1)
+    parser.add_option ("-z", "--hostlist", dest="hostlist", type="string", default="")
 
     (o, args) = parser.parse_args()
     
@@ -401,7 +408,8 @@ if __name__ == '__main__':
         # We run FFT logging in a separate process
         #
         if newpid == 0:
-            doit_fft(o.fftsize,o.alpha,o.rate*10,o.port+1,o.f1,o.f2,o.srate,o.longit,declns,o.slog,o.prefix,o.nchan,o.nhost)
+            hlist = o.hostlist.split(",")
+            doit_fft(o.fftsize,o.alpha,o.rate*10,o.port+1,o.f1,o.f2,o.srate,o.longit,declns,o.slog,o.prefix,o.nchan,o.nhost,hlist)
             os.exit(0)
         else:
             f=open("ra_detector_receiver-"+o.prefix+".pid", "w")
