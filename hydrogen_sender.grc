@@ -202,7 +202,7 @@
     </param>
     <param>
       <key>width</key>
-      <value>300e3</value>
+      <value>400e3</value>
     </param>
     <param>
       <key>win</key>
@@ -248,7 +248,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(584, 284)</value>
+      <value>(624, 76)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -260,7 +260,34 @@
     </param>
     <param>
       <key>value</key>
-      <value>500/(fftsize/2048)</value>
+      <value>350/(fftsize/2048)</value>
+    </param>
+  </block>
+  <block>
+    <key>variable</key>
+    <param>
+      <key>comment</key>
+      <value></value>
+    </param>
+    <param>
+      <key>_enabled</key>
+      <value>True</value>
+    </param>
+    <param>
+      <key>_coordinate</key>
+      <value>(400, 388)</value>
+    </param>
+    <param>
+      <key>_rotation</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>id</key>
+      <value>rotation</value>
+    </param>
+    <param>
+      <key>value</key>
+      <value>offset*((3.1415926*2.0)/bandwidth)</value>
     </param>
   </block>
   <block>
@@ -523,6 +550,49 @@
     <param>
       <key>vlen</key>
       <value>fftsize</value>
+    </param>
+  </block>
+  <block>
+    <key>blocks_rotator_cc</key>
+    <param>
+      <key>alias</key>
+      <value></value>
+    </param>
+    <param>
+      <key>comment</key>
+      <value></value>
+    </param>
+    <param>
+      <key>affinity</key>
+      <value></value>
+    </param>
+    <param>
+      <key>_enabled</key>
+      <value>True</value>
+    </param>
+    <param>
+      <key>_coordinate</key>
+      <value>(392, 340)</value>
+    </param>
+    <param>
+      <key>_rotation</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>id</key>
+      <value>blocks_rotator_cc_0</value>
+    </param>
+    <param>
+      <key>maxoutbuf</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>minoutbuf</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>phase_inc</key>
+      <value>0.0</value>
     </param>
   </block>
   <block>
@@ -1148,14 +1218,10 @@
     </param>
   </block>
   <block>
-    <key>freq_xlating_fft_filter_ccc</key>
+    <key>fir_filter_xxx</key>
     <param>
       <key>alias</key>
       <value></value>
-    </param>
-    <param>
-      <key>center_freq</key>
-      <value>offset</value>
     </param>
     <param>
       <key>comment</key>
@@ -1175,7 +1241,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(296, 160)</value>
+      <value>(304, 196)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -1183,7 +1249,7 @@
     </param>
     <param>
       <key>id</key>
-      <value>freq_xlating_fft_filter_ccc_0</value>
+      <value>fir_filter_xxx_0</value>
     </param>
     <param>
       <key>maxoutbuf</key>
@@ -1194,20 +1260,16 @@
       <value>0</value>
     </param>
     <param>
-      <key>nthreads</key>
-      <value>1</value>
-    </param>
-    <param>
       <key>samp_delay</key>
       <value>0</value>
     </param>
     <param>
-      <key>samp_rate</key>
-      <value>samp_rate</value>
-    </param>
-    <param>
       <key>taps</key>
       <value>filtaps</value>
+    </param>
+    <param>
+      <key>type</key>
+      <value>ccf</value>
     </param>
   </block>
   <block>
@@ -1332,7 +1394,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(400, 320)</value>
+      <value>(592, 320)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -3225,6 +3287,12 @@ def map_udev(d):
     <sink_key>0</sink_key>
   </connection>
   <connection>
+    <source_block_id>blocks_rotator_cc_0</source_block_id>
+    <sink_block_id>logpwrfft_x_0</sink_block_id>
+    <source_key>0</source_key>
+    <sink_key>0</sink_key>
+  </connection>
+  <connection>
     <source_block_id>blocks_stream_to_vector_0</source_block_id>
     <sink_block_id>blocks_add_const_vxx_0</sink_block_id>
     <source_key>0</source_key>
@@ -3237,8 +3305,8 @@ def map_udev(d):
     <sink_key>0</sink_key>
   </connection>
   <connection>
-    <source_block_id>freq_xlating_fft_filter_ccc_0</source_block_id>
-    <sink_block_id>logpwrfft_x_0</sink_block_id>
+    <source_block_id>fir_filter_xxx_0</source_block_id>
+    <sink_block_id>blocks_rotator_cc_0</sink_block_id>
     <source_key>0</source_key>
     <sink_key>0</sink_key>
   </connection>
@@ -3250,7 +3318,7 @@ def map_udev(d):
   </connection>
   <connection>
     <source_block_id>osmosdr_source_0</source_block_id>
-    <sink_block_id>freq_xlating_fft_filter_ccc_0</sink_block_id>
+    <sink_block_id>fir_filter_xxx_0</sink_block_id>
     <source_key>0</source_key>
     <sink_key>0</sink_key>
   </connection>
