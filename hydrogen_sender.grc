@@ -202,7 +202,7 @@
     </param>
     <param>
       <key>width</key>
-      <value>400e3</value>
+      <value>300e3</value>
     </param>
     <param>
       <key>win</key>
@@ -248,7 +248,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(624, 76)</value>
+      <value>(784, 308)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -260,7 +260,7 @@
     </param>
     <param>
       <key>value</key>
-      <value>350/(fftsize/2048)</value>
+      <value>400/(fftsize/2048)</value>
     </param>
   </block>
   <block>
@@ -357,7 +357,7 @@
     </param>
     <param>
       <key>poll_rate</key>
-      <value>1</value>
+      <value>2</value>
     </param>
   </block>
   <block>
@@ -1362,7 +1362,7 @@
     <key>logpwrfft_x</key>
     <param>
       <key>avg_alpha</key>
-      <value>(1.0/(frate))/6.0</value>
+      <value>1.0/(frate*3)</value>
     </param>
     <param>
       <key>average</key>
