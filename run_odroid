@@ -413,7 +413,7 @@ then
 	for ht in `echo $HOST|sed -e 's/,/ /g'`
 	do
 		sshpass -p astronomer ssh astronomer@$ht "rm -f .gr_fftw_wisdom"
-		cmd="$RNAME --gain $GAIN  --f1 $FREQ --f2 $FREQ2  --abw $ABW --host $inaddr --port $PORT --srate $SRATE --dbw $BANDWIDTH --fg1 $FG1 --fg2 $FG2 --cdev $CDEV --udev $UDEV --fftsize $FFTSIZE --offset $OFFSET"
+		cmd="$RNAME --gain $GAIN  --f1 $FREQ   --abw $ABW --host $inaddr --port $PORT --srate $SRATE   --udev $UDEV --fftsize $FFTSIZE --offset $OFFSET"
 		echo Running remote command: "$cmd"
 		echo ....ON HOST $ht
 		sshpass -p astronomer ssh astronomer@$ht "source ~/.bashrc; psycho_killer.py astronomer $RNAME; sleep 2; $cmd" &
