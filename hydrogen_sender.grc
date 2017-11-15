@@ -147,7 +147,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(848, 1108)</value>
+      <value>(608, 532)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -159,7 +159,7 @@
     </param>
     <param>
       <key>value</key>
-      <value>2</value>
+      <value>3</value>
     </param>
   </block>
   <block>
@@ -1061,7 +1061,7 @@
     <key>logpwrfft_x</key>
     <param>
       <key>avg_alpha</key>
-      <value>1.0/(frate*3)</value>
+      <value>1.0/(frate*4.0)</value>
     </param>
     <param>
       <key>average</key>
