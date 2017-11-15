@@ -4,6 +4,11 @@ BINFILES=corrint_uhd.py psr_sender.py ra_detector_receiver.py rsu.py \
   psycho_killer.py
 SRCFILES=corrint_uhd.grc psr_sender.grc ra_sender.grc methanol_sender.grc ra_adding_double.grc hydrogen_sender.grc
 FILES=$(BINFILES) $(LIBFILES) $(SRCFILES)
+buildall: corrint_uhd.py psr_sender.py ra_sender.py methanol_sender.py ra_adding_double.py hydrogen_sender.py
+
+%.py: %.grc
+	grcc -d . $<
+
 install: $(FILES)
 	cp $(BINFILES) /usr/local/bin
 	chmod 755 /usr/local/bin/*
