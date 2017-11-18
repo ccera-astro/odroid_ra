@@ -6,6 +6,7 @@ import struct
 import binascii
 from optparse import OptionParser
 import operator
+import serial
 
 doephem=True
 try:
@@ -105,7 +106,7 @@ def doit(a,lograte,port,dcgain,frq1,frq2,longit,decln,logf,prefix,legend):
 
             then = now
 
-def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix,nchan,nhost,hlist):
+def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix,nchan,nhost,hlist,caldict):
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -157,7 +158,7 @@ def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix,nch
     alpha_vect = [a]*fftsize
     beta_vect = [1.0-a]*fftsize
 
-
+    cal_count = 0
     #
     # Forever, read data from remote host(s).
     # Each data chunk will be "nchans" of interleaved FFT data
@@ -193,9 +194,24 @@ def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix,nch
         now = int(time.time())
         if (now-then) >= 5:
             if (logf):
-                logfftdata ([frq1]*len(avg_ffts),avg_ffts,longit,decln,lograte,srate,prefix)
+                if cal_state == "ON":
+                    decs = ["-999"]*len(avg_ffts)
+                else:
+                    decs = decln
+                logfftdata ([frq1]*len(avg_ffts),avg_ffts,longit,decs,lograte,srate,prefix)
             then = now
-
+        
+        if (caldict["type"] == "simple"):
+            if ((int(now) % (3600*2)) == 0 and cal_state == "OFF" and caldict["device"] != ""):
+                cal_state = "ON"
+                cal_serial = serial.Serial (caldict["device"], caldict["speed"])
+                cal_time = now
+            elif (cal_state == "ON"):
+                if ((now - cal_time) >= (5*60)):
+                    cal_state = "OFF"
+                    cal_serial.close()
+                    cal_serial = None
+                
 #
 # Remember last time we logged FFT data
 #
@@ -379,6 +395,9 @@ if __name__ == '__main__':
     parser.add_option ("-c", "--nchan", dest="nchan", type="int", default=2)
     parser.add_option ("-t", "--nhost", dest="nhost", type="int", default=1)
     parser.add_option ("-z", "--hostlist", dest="hostlist", type="string", default="")
+    parser.add_option ("--caldev", dest="caldev", type="string", default="")
+    parser.add_option ("--caltype", dest="caltype", type="choice", choices=["simple","bitwhacker"], default="simple")
+    parser.add_option ("--calspeed", dest="calspeed", type="int", default=115200)
 
     (o, args) = parser.parse_args()
     
@@ -398,6 +417,11 @@ if __name__ == '__main__':
         fd = float(o.decln)
         declns = [fd]*(o.nhost*o.nchan)
     
+    caldict = {}
+    caldict["device"] = o.caldevice
+    caldict["speed"] = o.calspeed
+    caldict["type"] = o.caltype
+    
     #
     # The whole "suppress" thing needs to be re-thought
     #   
@@ -409,7 +433,8 @@ if __name__ == '__main__':
         #
         if newpid == 0:
             hlist = o.hostlist.split(",")
-            doit_fft(o.fftsize,o.alpha,o.rate*10,o.port+1,o.f1,o.f2,o.srate,o.longit,declns,o.slog,o.prefix,o.nchan,o.nhost,hlist)
+            doit_fft(o.fftsize,o.alpha,o.rate*10,o.port+1,o.f1,o.f2,o.srate,
+                o.longit,declns,o.slog,o.prefix,o.nchan,o.nhost,hlist,caldict)
             os.exit(0)
         else:
             f=open("ra_detector_receiver-"+o.prefix+".pid", "w")
