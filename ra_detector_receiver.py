@@ -113,6 +113,7 @@ def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix,nch
     host = "0.0.0.0"
     sock.bind ((host,port))
     sock.listen(1)
+    cal_state = "OFF"
     
     cfds = []
     addrs = []
@@ -202,12 +203,14 @@ def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix,nch
             then = now
         
         if (caldict["type"] == "simple"):
-            if ((int(now) % (3600*2)) == 0 and cal_state == "OFF" and caldict["device"] != ""):
+            if ((int(now) % (60*60)) == 0 and cal_state == "OFF" and caldict["device"] != ""):
                 cal_state = "ON"
+                print "Turning serial ON"
                 cal_serial = serial.Serial (caldict["device"], caldict["speed"])
                 cal_time = now
             elif (cal_state == "ON"):
-                if ((now - cal_time) >= (5*60)):
+                if ((now - cal_time) >= (4*60)):
+                    print "Turning serial OFF"
                     cal_state = "OFF"
                     cal_serial.close()
                     cal_serial = None
@@ -418,7 +421,7 @@ if __name__ == '__main__':
         declns = [fd]*(o.nhost*o.nchan)
     
     caldict = {}
-    caldict["device"] = o.caldevice
+    caldict["device"] = o.caldev
     caldict["speed"] = o.calspeed
     caldict["type"] = o.caltype
     

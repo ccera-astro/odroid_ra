@@ -399,7 +399,7 @@ then
 		
 	ra_detector_receiver.py -a $ALPHA -p $PORT -1 $FREQ -2 $FREQ  \
 		-l $LONG -d $DECLN -r $LRATE -s 2.5e6 -g $DCGAIN -x $EXPNAME $dlogging $slogging --nhost 2 --nchan 1 --hostlist $HOST \
-		--fftsize $FFTSIZE &
+		--fftsize $FFTSIZE  --caldev /dev/ttyUSB0 &
 	
 	
     PID=$!
