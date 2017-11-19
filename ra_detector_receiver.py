@@ -114,6 +114,7 @@ def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix,nch
     sock.bind ((host,port))
     sock.listen(1)
     cal_state = "OFF"
+    cal_serial = None
     
     cfds = []
     addrs = []
@@ -157,7 +158,10 @@ def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix,nch
     then = int(time.time())
     now = then
     alpha_vect = [a]*fftsize
+    alpha_prime_vect = [a*4.0]*fftsize
+    
     beta_vect = [1.0-a]*fftsize
+    beta_prime_vect = [1.0-(a*4.0)]*fftsize
 
     cal_count = 0
     #
@@ -188,8 +192,12 @@ def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix,nch
         
         for nx in range(0,len(ffts)):
             f1 = struct.unpack_from('%df' % fftsize, buffer(ffts[nx]))
-            t1 = map(operator.mul, f1, alpha_vect)
-            tt1 = map(operator.mul, avg_ffts[nx], beta_vect)
+            if (cal_state != "ON"):
+                t1 = map(operator.mul, f1, alpha_vect)
+                tt1 = map(operator.mul, avg_ffts[nx], beta_vect)
+            else:
+                t1 = map(operator.mul, f1, alpha_prime_vect)
+                tt2 = map(operator.mul, avg_ffts[nx], beta_prime_vect)
             avg_ffts[nx] = map(operator.add, t1, tt1)
 
         now = int(time.time())
@@ -204,13 +212,14 @@ def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix,nch
         
         if (caldict["type"] == "simple"):
             if ((int(now) % (60*60)) == 0 and cal_state == "OFF" and caldict["device"] != ""):
-                cal_state = "ON"
-                print "Turning serial ON"
-                cal_serial = serial.Serial (caldict["device"], caldict["speed"])
-                cal_time = now
-            elif (cal_state == "ON"):
+                try:
+                    cal_serial = serial.Serial (caldict["device"], caldict["speed"])
+                    cal_time = now
+                    cal_state = "ON"
+                except:
+                    pass
+            elif (cal_state == "ON" and cal_serial != None):
                 if ((now - cal_time) >= (4*60)):
-                    print "Turning serial OFF"
                     cal_state = "OFF"
                     cal_serial.close()
                     cal_serial = None
