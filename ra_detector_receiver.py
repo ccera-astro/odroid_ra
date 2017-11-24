@@ -133,11 +133,6 @@ def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix,nch
         c, addr = sock.accept()
         cfds.append(c)
         addrs.append(addr[0])
- 
-    #
-    # FFT counter, for averaging
-    #
-    fcnt = 0
     
     #
     # Our list of FFT averages
@@ -160,12 +155,19 @@ def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix,nch
     then = int(time.time())
     now = then
     alpha_vect = [a]*fftsize
+    
+    #
+    # Make alpha "sloppier" during CAL sequence
+    #
     alpha_prime_vect = [a*4.0]*fftsize
     
     beta_vect = [1.0-a]*fftsize
+    
+    #
+    # Cal sequence beta, to correspond to matching alpha value
+    #
     beta_prime_vect = [1.0-(a*4.0)]*fftsize
 
-    cal_count = 0
     #
     # Forever, read data from remote host(s).
     # Each data chunk will be "nchans" of interleaved FFT data
@@ -189,29 +191,58 @@ def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix,nch
                          sys.exit()
                     v = v[nbytes:]
                     toread -= nbytes
-
-        fcnt = fcnt + 1
-        
+        #
+        # Skip samples will be > 0 after transition into/out-of CAL state
+        # We want to ignore the resulting transient
+        #
         if skip_samples > 0:
             skip_samples -= 1
             continue
         
+        #
+        # We have a buncha FFT buffers now, process them
+        #
         for nx in range(0,len(ffts)):
+			
+			#
+			# Turn buffer into actual floats
+			#
             f1 = struct.unpack_from('%df' % fftsize, buffer(ffts[nx]))
+            
+            #
+            # We reset the integrator across CAL transitions
+            #
             if dump_integrator == True:
                 avg_ffts[nx] = f1
+            
+            #
+            # Reduce the effective integration time during CAL ON
+            #
             if (cal_state != "ON"):
                 t1 = map(operator.mul, f1, alpha_vect)
                 tt1 = map(operator.mul, avg_ffts[nx], beta_vect)
             else:
                 t1 = map(operator.mul, f1, alpha_prime_vect)
-                tt2 = map(operator.mul, avg_ffts[nx], beta_prime_vect)
+                tt1 = map(operator.mul, avg_ffts[nx], beta_prime_vect)
+            
+            
             avg_ffts[nx] = map(operator.add, t1, tt1)
+        
+        #
+        # Make sure we only do this ONCE per-channel per-transition!!
+        #
         dump_integrator = False
 
+        #
+        # Might be time to do some logging
+        #
         now = int(time.time())
         if (now-then) >= 5:
             if (logf):
+				#
+				# Change the DECLN tag(s) in the output log
+				# Make the logging interval smaller during CAL ON state
+				#
                 if cal_state == "ON":
                     decs = ["-999"]*len(avg_ffts)
                     lrate = lograte/3
@@ -222,22 +253,49 @@ def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix,nch
                 logfftdata ([frq1]*len(avg_ffts),avg_ffts,longit,decs,lrate,srate,prefix)
             then = now
         
+        #
+        # Handle the "simple" calibration-control case
+        #  Just a cheap USB-to-TTL-serial with the DTR pin tied to
+        #  an inverted-logic relay driver
+        #
         if (caldict["type"] == "simple"):
+			
+			#
+			# Every 30 minutes...
+			#
             if ((int(now) % (30*60)) == 0 and cal_state == "OFF" and caldict["device"] != ""):
                 try:
                     cal_serial = serial.Serial (caldict["device"], caldict["speed"])
                     cal_time = now
                     cal_state = "ON"
+                    #
+                    # Force integrator reset
+                    #
                     dump_integrator = True
+                    
+                    #
+                    # Force sample skip
+                    #
                     skip_samples = 10
                 except:
                     pass
+            #
+            # Already in "ON" state, check for time to turn "OFF"
+            #
             elif (cal_state == "ON" and cal_serial != None):
                 if ((now - cal_time) >= (4*60)):
                     cal_state = "OFF"
                     cal_serial.close()
                     cal_serial = None
+                    
+                    #
+                    # Force integrator reset
+                    #
                     dump_integrator = True
+                    
+                    #
+                    # Force sample skip
+                    #
                     skip_samples = 10
                 
 #
