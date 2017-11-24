@@ -115,6 +115,7 @@ def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix,nch
     sock.listen(1)
     cal_state = "OFF"
     cal_serial = None
+    dump_integrator = False
     
     cfds = []
     addrs = []
@@ -192,6 +193,9 @@ def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix,nch
         
         for nx in range(0,len(ffts)):
             f1 = struct.unpack_from('%df' % fftsize, buffer(ffts[nx]))
+            if dump_integrator == True:
+                dump_integrator = False
+                avg_ffts[nx] = f1
             if (cal_state != "ON"):
                 t1 = map(operator.mul, f1, alpha_vect)
                 tt1 = map(operator.mul, avg_ffts[nx], beta_vect)
@@ -216,13 +220,15 @@ def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix,nch
                     cal_serial = serial.Serial (caldict["device"], caldict["speed"])
                     cal_time = now
                     cal_state = "ON"
+                    dump_integrator = True
                 except:
                     pass
             elif (cal_state == "ON" and cal_serial != None):
-                if ((now - cal_time) >= (4*60)):
+                if ((now - cal_time) >= (6*60)):
                     cal_state = "OFF"
                     cal_serial.close()
                     cal_serial = None
+                    dump_integrator = True
                 
 #
 # Remember last time we logged FFT data
