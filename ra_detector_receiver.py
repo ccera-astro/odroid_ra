@@ -223,7 +223,7 @@ def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix,nch
             then = now
         
         if (caldict["type"] == "simple"):
-            if ((int(now) % (60*60)) == 0 and cal_state == "OFF" and caldict["device"] != ""):
+            if ((int(now) % (30*60)) == 0 and cal_state == "OFF" and caldict["device"] != ""):
                 try:
                     cal_serial = serial.Serial (caldict["device"], caldict["speed"])
                     cal_time = now
@@ -233,7 +233,7 @@ def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix,nch
                 except:
                     pass
             elif (cal_state == "ON" and cal_serial != None):
-                if ((now - cal_time) >= (6*60)):
+                if ((now - cal_time) >= (4*60)):
                     cal_state = "OFF"
                     cal_serial.close()
                     cal_serial = None
