@@ -116,6 +116,7 @@ def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix,nch
     cal_state = "OFF"
     cal_serial = None
     dump_integrator = False
+    skip_samples = 0
     
     cfds = []
     addrs = []
@@ -191,6 +192,10 @@ def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix,nch
 
         fcnt = fcnt + 1
         
+        if skip_samples > 0:
+            skip_samples -= 1
+            continue
+        
         for nx in range(0,len(ffts)):
             f1 = struct.unpack_from('%df' % fftsize, buffer(ffts[nx]))
             if dump_integrator == True:
@@ -221,6 +226,7 @@ def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix,nch
                     cal_time = now
                     cal_state = "ON"
                     dump_integrator = True
+                    skip_samples = 10
                 except:
                     pass
             elif (cal_state == "ON" and cal_serial != None):
@@ -229,6 +235,7 @@ def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix,nch
                     cal_serial.close()
                     cal_serial = None
                     dump_integrator = True
+                    skip_samples = 10
                 
 #
 # Remember last time we logged FFT data
