@@ -214,9 +214,12 @@ def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix,nch
             if (logf):
                 if cal_state == "ON":
                     decs = ["-999"]*len(avg_ffts)
+                    lrate = lograte/3
                 else:
                     decs = decln
-                logfftdata ([frq1]*len(avg_ffts),avg_ffts,longit,decs,lograte,srate,prefix)
+                    lrate = lograte
+                
+                logfftdata ([frq1]*len(avg_ffts),avg_ffts,longit,decs,lrate,srate,prefix)
             then = now
         
         if (caldict["type"] == "simple"):
