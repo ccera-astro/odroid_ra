@@ -194,7 +194,6 @@ def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix,nch
         for nx in range(0,len(ffts)):
             f1 = struct.unpack_from('%df' % fftsize, buffer(ffts[nx]))
             if dump_integrator == True:
-                dump_integrator = False
                 avg_ffts[nx] = f1
             if (cal_state != "ON"):
                 t1 = map(operator.mul, f1, alpha_vect)
@@ -203,6 +202,7 @@ def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix,nch
                 t1 = map(operator.mul, f1, alpha_prime_vect)
                 tt2 = map(operator.mul, avg_ffts[nx], beta_prime_vect)
             avg_ffts[nx] = map(operator.add, t1, tt1)
+        dump_integrator = False
 
         now = int(time.time())
         if (now-then) >= 5:
