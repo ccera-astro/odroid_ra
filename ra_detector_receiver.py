@@ -154,6 +154,10 @@ def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix,nch
     x = 0
     then = int(time.time())
     now = then
+    
+    #
+    # Vectorize alpha value
+    #
     alpha_vect = [a]*fftsize
     
     #
@@ -161,6 +165,9 @@ def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix,nch
     #
     alpha_prime_vect = [a*4.0]*fftsize
     
+    #
+    # Vectorize beta value
+    #
     beta_vect = [1.0-a]*fftsize
     
     #
@@ -214,6 +221,16 @@ def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix,nch
             #
             if dump_integrator == True:
                 avg_ffts[nx] = f1
+                
+             
+            #
+            # We perform a vector-based single-pole IIR calculation to
+            #   effect an integrator
+            #
+            #  Yn = alpha*val + beta*Yn-1
+            #
+            #  Where beta = 1.0-alpha
+            #
             
             #
             # Reduce the effective integration time during CAL ON
@@ -259,7 +276,6 @@ def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix,nch
         #  an inverted-logic relay driver
         #
         if (caldict["type"] == "simple"):
-			
 			#
 			# Every 30 minutes...
 			#
