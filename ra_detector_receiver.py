@@ -271,7 +271,7 @@ def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix,nch
                     #
                     # Force sample skip
                     #
-                    skip_samples = 12
+                    skip_samples = 15
                 except:
                     pass
             #
@@ -286,7 +286,7 @@ def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix,nch
                     #
                     # Force sample skip
                     #
-                    skip_samples = 12
+                    skip_samples = 15
                 
 #
 # Remember last time we logged FFT data
