@@ -1061,7 +1061,7 @@
     <key>logpwrfft_x</key>
     <param>
       <key>avg_alpha</key>
-      <value>1.0/(frate*4.0)</value>
+      <value>1.0/(frate*2.5)</value>
     </param>
     <param>
       <key>average</key>
