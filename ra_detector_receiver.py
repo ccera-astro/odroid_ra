@@ -163,7 +163,7 @@ def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix,nch
     #
     # Make alpha "sloppier" during CAL sequence
     #
-    alpha_prime_vect = [a*4.0]*fftsize
+    alpha_prime_vect = [a*1.5]*fftsize
     
     #
     # Vectorize beta value
