@@ -148,8 +148,8 @@ def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix,nch
     WIREFLOATSZ = 4
     
     for i in range(0,nhost*nchan):
-        avg_ffts.append([0.0] * fftsize)
-        avg_cals.append([0.0] * fftsize)
+        avg_ffts.append([-999.0] * fftsize)
+        avg_cals.append([-999.0] * fftsize)
         ffts.append(bytearray(fftsize*WIREFLOATSZ))
 
     x = 0
@@ -206,7 +206,6 @@ def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix,nch
             # Turn buffer into actual floats
             #
             f1 = struct.unpack_from('%df' % fftsize, buffer(ffts[nx]))
-            
              
             #
             # We perform a vector-based single-pole IIR calculation to
@@ -221,10 +220,22 @@ def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix,nch
             # Maintain two different integrator pathways for two CAL states
             #
             if (cal_state != "ON"):
+                #
+                # Deal with initial loading of integrator
+                #
+                if (avg_ffts[nx][0] < -500):
+                    avg_ffts[nx] = f1
+
                 t1 = map(operator.mul, f1, alpha_vect)
                 tt1 = map(operator.mul, avg_ffts[nx], beta_vect)
                 avg_ffts[nx] = map(operator.add, t1, tt1)
             else:
+                #
+                # Deal with initial loading of integrator
+                #
+                if (avg_cals[nx][0] < -500):
+                    avg_cals[nx] = f1
+
                 t1 = map(operator.mul, f1, alpha_vect)
                 tt1 = map(operator.mul, avg_cals[nx], beta_vect)
                 avg_cals[nx] = map(operator.add, t1, tt1)
@@ -236,7 +247,7 @@ def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix,nch
         now = int(time.time())
         if (now-then) >= 10:
             if (logf):
-				
+                
                 #
                 # Change the DECLN tag(s) in the output log
                 # Make the logging interval smaller during CAL ON state
@@ -273,6 +284,8 @@ def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix,nch
                     #
                     skip_samples = 15
                 except:
+                    cal_serial = None
+                    cal_state = "OFF"
                     pass
             #
             # Already in "ON" state, check for time to turn "OFF"
