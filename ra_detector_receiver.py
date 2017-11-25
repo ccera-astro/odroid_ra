@@ -116,6 +116,9 @@ def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix,nch
     cal_state = "OFF"
     cal_serial = None
     skip_samples = 0
+    SKIP_COUNT = 20
+    CAL_INTERVAL = 45
+    CAL_TIME = 5
     
     cfds = []
     addrs = []
@@ -194,6 +197,7 @@ def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix,nch
         # We want to ignore the resulting transient
         #
         if skip_samples > 0:
+            print "Skipping %d" % skip_samples
             skip_samples -= 1
             continue
         
@@ -273,7 +277,7 @@ def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix,nch
             #
             # Every 45 minutes...
             #
-            if ((int(now) % (45*60)) == 0 and cal_state == "OFF" and caldict["device"] != ""):
+            if ((int(now) % (CAL_INTERVAL*60)) == 0 and cal_state == "OFF" and caldict["device"] != ""):
                 try:
                     cal_serial = serial.Serial (caldict["device"], caldict["speed"])
                     cal_time = now
@@ -282,7 +286,7 @@ def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix,nch
                     #
                     # Force sample skip
                     #
-                    skip_samples = 15
+                    skip_samples = SKIP_COUNT
                 except:
                     cal_serial = None
                     cal_state = "OFF"
@@ -291,7 +295,7 @@ def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix,nch
             # Already in "ON" state, check for time to turn "OFF"
             #
             elif (cal_state == "ON" and cal_serial != None):
-                if ((now - cal_time) >= (4*60)):
+                if ((now - cal_time) >= (CAL_TIME*60)):
                     cal_state = "OFF"
                     cal_serial.close()
                     cal_serial = None
@@ -299,7 +303,7 @@ def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix,nch
                     #
                     # Force sample skip
                     #
-                    skip_samples = 15
+                    skip_samples = SKIP_COUNT
                 
 #
 # Remember last time we logged FFT data
