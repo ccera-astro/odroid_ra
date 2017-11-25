@@ -115,7 +115,6 @@ def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix,nch
     sock.listen(1)
     cal_state = "OFF"
     cal_serial = None
-    dump_integrator = False
     skip_samples = 0
     
     cfds = []
@@ -140,6 +139,7 @@ def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix,nch
     # There'll be nhost * nchan of them
     #
     avg_ffts = []
+    avg_cals = []
     ffts = []
     
     #
@@ -149,6 +149,7 @@ def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix,nch
     
     for i in range(0,nhost*nchan):
         avg_ffts.append([0.0] * fftsize)
+        avg_cals.append([0.0] * fftsize)
         ffts.append(bytearray(fftsize*WIREFLOATSZ))
 
     x = 0
@@ -161,19 +162,9 @@ def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix,nch
     alpha_vect = [a]*fftsize
     
     #
-    # Make alpha "sloppier" during CAL sequence
-    #
-    alpha_prime_vect = [a*1.5]*fftsize
-    
-    #
     # Vectorize beta value
     #
     beta_vect = [1.0-a]*fftsize
-    
-    #
-    # Cal sequence beta, to correspond to matching alpha value
-    #
-    beta_prime_vect = [1.0-(a*4.0)]*fftsize
 
     #
     # Forever, read data from remote host(s).
@@ -210,18 +201,12 @@ def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix,nch
         # We have a buncha FFT buffers now, process them
         #
         for nx in range(0,len(ffts)):
-			
-			#
-			# Turn buffer into actual floats
-			#
-            f1 = struct.unpack_from('%df' % fftsize, buffer(ffts[nx]))
             
             #
-            # We reset the integrator across CAL transitions
+            # Turn buffer into actual floats
             #
-            if dump_integrator == True:
-                avg_ffts[nx] = f1
-                
+            f1 = struct.unpack_from('%df' % fftsize, buffer(ffts[nx]))
+            
              
             #
             # We perform a vector-based single-pole IIR calculation to
@@ -233,41 +218,39 @@ def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix,nch
             #
             
             #
-            # Reduce the effective integration time during CAL ON
+            # Maintain two different integrator pathways for two CAL states
             #
             if (cal_state != "ON"):
                 t1 = map(operator.mul, f1, alpha_vect)
                 tt1 = map(operator.mul, avg_ffts[nx], beta_vect)
+                avg_ffts[nx] = map(operator.add, t1, tt1)
             else:
-                t1 = map(operator.mul, f1, alpha_prime_vect)
-                tt1 = map(operator.mul, avg_ffts[nx], beta_prime_vect)
-            
-            
-            avg_ffts[nx] = map(operator.add, t1, tt1)
+                t1 = map(operator.mul, f1, alpha_vect)
+                tt1 = map(operator.mul, avg_cals[nx], beta_vect)
+                avg_cals[nx] = map(operator.add, t1, tt1)
         
-        #
-        # Make sure we only do this ONCE per-channel per-transition!!
-        #
-        dump_integrator = False
 
         #
         # Might be time to do some logging
         #
         now = int(time.time())
-        if (now-then) >= 5:
+        if (now-then) >= 10:
             if (logf):
-				#
-				# Change the DECLN tag(s) in the output log
-				# Make the logging interval smaller during CAL ON state
-				#
+				
+                #
+                # Change the DECLN tag(s) in the output log
+                # Make the logging interval smaller during CAL ON state
+                #
                 if cal_state == "ON":
                     decs = ["-999"]*len(avg_ffts)
                     lrate = lograte/3
+                    vect=avg_cals
                 else:
                     decs = decln
                     lrate = lograte
+                    vect=avg_ffts
                 
-                logfftdata ([frq1]*len(avg_ffts),avg_ffts,longit,decs,lrate,srate,prefix)
+                logfftdata ([frq1]*len(avg_ffts),vect,longit,decs,lrate,srate,prefix)
             then = now
         
         #
@@ -276,18 +259,14 @@ def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix,nch
         #  an inverted-logic relay driver
         #
         if (caldict["type"] == "simple"):
-			#
-			# Every 30 minutes...
-			#
-            if ((int(now) % (30*60)) == 0 and cal_state == "OFF" and caldict["device"] != ""):
+            #
+            # Every 45 minutes...
+            #
+            if ((int(now) % (45*60)) == 0 and cal_state == "OFF" and caldict["device"] != ""):
                 try:
                     cal_serial = serial.Serial (caldict["device"], caldict["speed"])
                     cal_time = now
                     cal_state = "ON"
-                    #
-                    # Force integrator reset
-                    #
-                    dump_integrator = True
                     
                     #
                     # Force sample skip
@@ -303,12 +282,7 @@ def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix,nch
                     cal_state = "OFF"
                     cal_serial.close()
                     cal_serial = None
-                    
-                    #
-                    # Force integrator reset
-                    #
-                    dump_integrator = True
-                    
+ 
                     #
                     # Force sample skip
                     #
