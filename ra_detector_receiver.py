@@ -273,9 +273,9 @@ def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix,nch
         #  Just a cheap USB-to-TTL-serial with the DTR pin tied to
         #  an inverted-logic relay driver
         #
-        if (caldict["type"] == "simple"):
+        if (caldict["type"] == "simple" and caldict["device"] != ""):
             #
-            # Every 45 minutes...
+            # Every CAL_INTERVAL minutes...
             #
             if ((int(now) % (CAL_INTERVAL*60)) == 0 and cal_state == "OFF" and caldict["device"] != ""):
                 try:
