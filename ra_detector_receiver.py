@@ -116,9 +116,9 @@ def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix,nch
     cal_state = "OFF"
     cal_serial = None
     skip_samples = 0
-    SKIP_COUNT = 20
-    CAL_INTERVAL = 45
-    CAL_TIME = 5
+    SKIP_COUNT = 40
+    CAL_INTERVAL = 60
+    CAL_TIME = 6
     
     cfds = []
     addrs = []
@@ -197,7 +197,6 @@ def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix,nch
         # We want to ignore the resulting transient
         #
         if skip_samples > 0:
-            print "Skipping %d" % skip_samples
             skip_samples -= 1
             continue
         
