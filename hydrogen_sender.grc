@@ -260,7 +260,34 @@
     </param>
     <param>
       <key>value</key>
-      <value>400/(fftsize/2048)</value>
+      <value>rate_dict[fftsize]</value>
+    </param>
+  </block>
+  <block>
+    <key>variable</key>
+    <param>
+      <key>comment</key>
+      <value></value>
+    </param>
+    <param>
+      <key>_enabled</key>
+      <value>True</value>
+    </param>
+    <param>
+      <key>_coordinate</key>
+      <value>(496, 60)</value>
+    </param>
+    <param>
+      <key>_rotation</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>id</key>
+      <value>rate_dict</value>
+    </param>
+    <param>
+      <key>value</key>
+      <value>{8192 : 125, 4096 : 300, 2048 : 700, 1024 : 1500}</value>
     </param>
   </block>
   <block>
@@ -1061,7 +1088,7 @@
     <key>logpwrfft_x</key>
     <param>
       <key>avg_alpha</key>
-      <value>1.0/(frate*2.5)</value>
+      <value>1.0/(frate*1.5)</value>
     </param>
     <param>
       <key>average</key>
