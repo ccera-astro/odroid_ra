@@ -322,7 +322,7 @@
     </param>
     <param>
       <key>value</key>
-      <value>{8192 : 125, 4096 : 300, 2048 : 1000, 1024 : 1500}</value>
+      <value>{8192 : 125, 4096 : 300, 2048 : 1100, 1024 : 1500}</value>
     </param>
   </block>
   <block>
@@ -337,7 +337,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(400, 388)</value>
+      <value>(432, 468)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -350,6 +350,33 @@
     <param>
       <key>value</key>
       <value>offset*((3.1415926*2.0)/bandwidth)</value>
+    </param>
+  </block>
+  <block>
+    <key>variable</key>
+    <param>
+      <key>comment</key>
+      <value></value>
+    </param>
+    <param>
+      <key>_enabled</key>
+      <value>True</value>
+    </param>
+    <param>
+      <key>_coordinate</key>
+      <value>(1296, 324)</value>
+    </param>
+    <param>
+      <key>_rotation</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>id</key>
+      <value>rx</value>
+    </param>
+    <param>
+      <key>value</key>
+      <value>[random.uniform(0.98,1.0)+spec_prober[0]*0.0 for i in range(8192)]</value>
     </param>
   </block>
   <block>
@@ -630,7 +657,7 @@
     </param>
     <param>
       <key>const</key>
-      <value>[random.uniform(0.98,1.00) for i in range(8192)]</value>
+      <value>rx</value>
     </param>
     <param>
       <key>affinity</key>
@@ -740,7 +767,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(392, 340)</value>
+      <value>(168, 420)</value>
     </param>
     <param>
       <key>_rotation</key>
