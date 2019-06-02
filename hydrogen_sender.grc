@@ -182,7 +182,7 @@
     </param>
     <param>
       <key>cutoff_freq</key>
-      <value>1.1e6</value>
+      <value>bandwidth/2.2</value>
     </param>
     <param>
       <key>_enabled</key>
@@ -210,7 +210,7 @@
     </param>
     <param>
       <key>width</key>
-      <value>320e3</value>
+      <value>samp_rate/7.25</value>
     </param>
     <param>
       <key>win</key>
@@ -229,7 +229,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(944, 148)</value>
+      <value>(688, 148)</value>
     </param>
     <param>
       <key>_rotation</key>
