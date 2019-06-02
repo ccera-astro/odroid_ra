@@ -322,7 +322,7 @@
     </param>
     <param>
       <key>value</key>
-      <value>{8192 : 125, 4096 : 300, 2048 : 1100, 1024 : 1500}</value>
+      <value>{8192 : 125, 4096 : 350, 2048 : 1100, 1024 : 1500}</value>
     </param>
   </block>
   <block>
