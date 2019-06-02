@@ -101,34 +101,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(600, 188)</value>
-    </param>
-    <param>
-      <key>_rotation</key>
-      <value>0</value>
-    </param>
-    <param>
-      <key>id</key>
-      <value>bandwidth</value>
-    </param>
-    <param>
-      <key>value</key>
-      <value>2.5e6</value>
-    </param>
-  </block>
-  <block>
-    <key>variable</key>
-    <param>
-      <key>comment</key>
-      <value></value>
-    </param>
-    <param>
-      <key>_enabled</key>
-      <value>True</value>
-    </param>
-    <param>
-      <key>_coordinate</key>
-      <value>(248, 1115)</value>
+      <value>(272, 1116)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -140,7 +113,7 @@
     </param>
     <param>
       <key>value</key>
-      <value>rsu.map_udev(udev) if udev !="None" else devid1+" "+devid2</value>
+      <value>udev if udev != "None" else devid1+" "+devid2</value>
     </param>
   </block>
   <block>
@@ -217,7 +190,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(760, 144)</value>
+      <value>(504, 144)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -391,7 +364,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(224, 60)</value>
+      <value>(216, 20)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -541,6 +514,53 @@
     <param>
       <key>type</key>
       <value>float</value>
+    </param>
+  </block>
+  <block>
+    <key>parameter</key>
+    <param>
+      <key>alias</key>
+      <value></value>
+    </param>
+    <param>
+      <key>comment</key>
+      <value></value>
+    </param>
+    <param>
+      <key>_enabled</key>
+      <value>True</value>
+    </param>
+    <param>
+      <key>_coordinate</key>
+      <value>(424, 1000)</value>
+    </param>
+    <param>
+      <key>_rotation</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>id</key>
+      <value>bandwidth</value>
+    </param>
+    <param>
+      <key>label</key>
+      <value>FFT bandwidth</value>
+    </param>
+    <param>
+      <key>short_id</key>
+      <value></value>
+    </param>
+    <param>
+      <key>hide</key>
+      <value>none</value>
+    </param>
+    <param>
+      <key>type</key>
+      <value>eng_float</value>
+    </param>
+    <param>
+      <key>value</key>
+      <value>2.5e6</value>
     </param>
   </block>
   <block>
@@ -745,49 +765,6 @@
     <param>
       <key>vlen</key>
       <value>1</value>
-    </param>
-  </block>
-  <block>
-    <key>blocks_rotator_cc</key>
-    <param>
-      <key>alias</key>
-      <value></value>
-    </param>
-    <param>
-      <key>comment</key>
-      <value></value>
-    </param>
-    <param>
-      <key>affinity</key>
-      <value></value>
-    </param>
-    <param>
-      <key>_enabled</key>
-      <value>True</value>
-    </param>
-    <param>
-      <key>_coordinate</key>
-      <value>(168, 420)</value>
-    </param>
-    <param>
-      <key>_rotation</key>
-      <value>0</value>
-    </param>
-    <param>
-      <key>id</key>
-      <value>blocks_rotator_cc_0</value>
-    </param>
-    <param>
-      <key>maxoutbuf</key>
-      <value>0</value>
-    </param>
-    <param>
-      <key>minoutbuf</key>
-      <value>0</value>
-    </param>
-    <param>
-      <key>phase_inc</key>
-      <value>0.0</value>
     </param>
   </block>
   <block>
@@ -1061,7 +1038,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(122, 1114)</value>
+      <value>(136, 1112)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -1210,7 +1187,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(304, 196)</value>
+      <value>(296, 284)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -1234,7 +1211,7 @@
     </param>
     <param>
       <key>taps</key>
-      <value>filtaps</value>
+      <value>filtaps if bandwidth != samp_rate else [1.0]</value>
     </param>
     <param>
       <key>type</key>
@@ -2966,206 +2943,6 @@
     </param>
   </block>
   <block>
-    <key>epy_module</key>
-    <param>
-      <key>alias</key>
-      <value></value>
-    </param>
-    <param>
-      <key>source_code</key>
-      <value># this module will be imported in the into your flowgraph
-#
-# Configuration management for Simple RA
-#
-# Marcus Leech, Science Radio Laboratories, Inc.
-#
-import os
-import signal
-import numpy
-import math
-import sys
-import time
-import serial
-import stat
-
-cal_ontime = 30
-CAL_INIT_REQUIRED = 0
-CAL_WAITING = 1
-CAL_ON = 2
-CAL_BADDEVICE = 3
-CAL_MANUAL = 4
-cal_state = CAL_WAITING
-serh = None
-
-def calib_onoff_auto(depvar, devname, baudrate, initstring, onstring, offstring, lterm, every, seconds):
-    global serh
-    global cal_state
-    global cal_ontime
-    global CAL_INIT_REQUIRED
-    global CAL_WAITING
-    global CAL_ON
-    global CAL_BADDEVICE
-    global CAL_MANUAL
-    
-    f = open ("/tmp/ra_sender.pid", "w")
-    f.write(str(os.getpid())+"\n")
-    f.close()
-
-    if (os.path.exists(devname)):
-        s = os.stat(devname)
-        if stat.S_ISREG(s.st_mode):
-            if (s.st_size &gt; 0):
-                return "ON"
-            else:
-                return "OFF"
- 
-    #sys.stderr.write("Here I am"+"\n")
-
-    if (cal_state == CAL_BADDEVICE):
-        return "BAD-DEVICE"
-
-    if (len(devname) == 0 or devname == "none"):
-        return "OFF"
-
-    if (cal_state == CAL_WAITING):
-        t = int(time.time())
-        f = t % int(every)
-        if (f &lt;= 4) and serh == None:
-            #sys.stderr.write( "transitioning to ON at %d\n" % t)
-            try:
-               serh = serial.Serial (devname, baudrate, timeout=0)
-            except:
-                cal_state = CAL_BADDEVICE
-                return "OFF"
-            time.sleep(0.1)
-            serh.setDTR(True)
-            serh.write (initstring+lterm)
-            serh.read (1000)
-            cal_state = CAL_ON
-            cal_ontime = seconds+1
-            x=serh.read (1000)
-
-    if (cal_state == CAL_ON):
-        cal_ontime -= 1
-        if ((cal_ontime % 3) == 0):
-            # send onstring
-            serh.write (onstring+lterm)
-            #sys.stderr.write( "in CAL_ON, send onstring")
-            x=serh.read(100)
-        if (cal_ontime &lt;= 0):
-            t = int(time.time())
-            #sys.stderr.write( "transitioning to OFF at %d\n" % t)
-            # send offstring
-            serh.setDTR(False)
-            serh.write (offstring+lterm)
-            x=serh.read(1000)
-            cal_state = CAL_WAITING
-            time.sleep(0.1)
-            serh.write(offstring+lterm)
-            time.sleep(0.1)
-            x=serh.read(1000)
-            time.sleep(0.1)
-            serh.close()
-            serh = None
-
-    if (cal_state == CAL_ON):
-        return "ON"
-
-    return "OFF"
-
-def calib_onoff_manual (control,devname,baudrate,onstring,offstring,lterm):
-    global serh
-    global cal_state
-    global CAL_MANUAL
-    global CAL_WAITING
-
-    if (len(devname) == 0 or devname == "none"):
-        return False
-
-    if (cal_state == CAL_INIT_REQUIRED or cal_state == CAL_BADDEVICE):
-        return False
-
-    if (control == True):
-        serh.write(onstring+lterm)
-        x=serh.read (100)
-        cal_state = CAL_MANUAL
-
-    if (control == False):
-        serh.write(offstring+lterm)
-        x=serh.read(100)
-        cal_state = CAL_WAITING
-
-    return True
-
-
-       
-correction_counter = 0
-corrections = [-1.0]*2
-running_avgs = [0.0]*2
-def update_corrections(l):
-    global correction_counter
-    global corrections
-    global running_avgs
-    
-    a = 0.1
-    
-    if running_avgs[0] == 0.0 and running_avgs[1] == 0.0:
-        running_avgs[0] = l[0]
-        running_avgs[1] = l[1]
-    
-    running_avgs[0] = a*l[0] + ((1.0 - a)*running_avgs[0])
-    running_avgs[1] = a*l[1] + ((1.0 - a)*running_avgs[1])
-    
-    correction_counter += 1
-    
-    if (correction_counter &lt; 180):
-        return [1.0,1.0]
-    
-    if (corrections[0] &lt; 0.0):
-        ratio = running_avgs[1]/(running_avgs[0]*0.97)
-        corrections[0] = 1.0
-        corrections[1] = 1.0/ratio
-
-    return (corrections)
-
-def map_udev(d):
-    if '@' not in d:
-        return (d)
-    fn = d.strip("@")+".dprof"
-    try:
-        f = open (fn, "r")
-    except:
-        return (d)
-    d = f.read()
-    d = d.strip("\n")
-    f.close()
-    return (d)
-
-    
-</value>
-    </param>
-    <param>
-      <key>comment</key>
-      <value></value>
-    </param>
-    <param>
-      <key>_enabled</key>
-      <value>True</value>
-    </param>
-    <param>
-      <key>_coordinate</key>
-      <value>(616, 140)</value>
-    </param>
-    <param>
-      <key>_rotation</key>
-      <value>0</value>
-    </param>
-    <param>
-      <key>id</key>
-      <value>rsu</value>
-    </param>
-  </block>
-  <block>
     <key>blocks_probe_signal_vx</key>
     <param>
       <key>alias</key>
@@ -3267,7 +3044,7 @@ def map_udev(d):
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(680, 999)</value>
+      <value>(448, 1096)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -3279,7 +3056,7 @@ def map_udev(d):
     </param>
     <param>
       <key>label</key>
-      <value>UHD Device string</value>
+      <value>UDEV</value>
     </param>
     <param>
       <key>short_id</key>
@@ -3295,7 +3072,7 @@ def map_udev(d):
     </param>
     <param>
       <key>value</key>
-      <value>"None"</value>
+      <value>None</value>
     </param>
   </block>
   <connection>
@@ -3319,12 +3096,6 @@ def map_udev(d):
   <connection>
     <source_block_id>blocks_repeat_0</source_block_id>
     <sink_block_id>blocks_stream_to_vector_1</sink_block_id>
-    <source_key>0</source_key>
-    <sink_key>0</sink_key>
-  </connection>
-  <connection>
-    <source_block_id>blocks_rotator_cc_0</source_block_id>
-    <sink_block_id>logpwrfft_x_0</sink_block_id>
     <source_key>0</source_key>
     <sink_key>0</sink_key>
   </connection>
@@ -3354,7 +3125,7 @@ def map_udev(d):
   </connection>
   <connection>
     <source_block_id>fir_filter_xxx_0</source_block_id>
-    <sink_block_id>blocks_rotator_cc_0</sink_block_id>
+    <sink_block_id>logpwrfft_x_0</sink_block_id>
     <source_key>0</source_key>
     <sink_key>0</sink_key>
   </connection>
