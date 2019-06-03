@@ -312,6 +312,7 @@ lastfftlogged = time.time()
 darkslides=None
 COVERAGE=180
 darkcounts=[1]*COVERAGE
+OUTSIDE_GP=37.0
 import copy
 def logfftdata (flist,plist,longit,decln,rate,srate,pfx,combine):
     global lastfftlogged
@@ -396,7 +397,7 @@ def logfftdata (flist,plist,longit,decln,rate,srate,pfx,combine):
             #   {-35,+35}, then we assume this is just "cold space", and is it
             #  as a "dark slide" calibrator.
             #
-            if (glat < -35 or glat > 35):
+            if (glat < -OUTSIDE_GP or glat > OUTSIDE_GP):
                 ndx = int(decln[di])
                 ndx += 90
                 vs = darkslide[ndx]
