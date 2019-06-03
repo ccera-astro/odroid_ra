@@ -106,7 +106,7 @@ def doit(a,lograte,port,dcgain,frq1,frq2,longit,decln,logf,prefix,legend):
 
             then = now
 
-def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix,nchan,nhost,hlist,caldict):
+def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix,nchan,nhost,hlist,caldict,combine):
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -264,7 +264,7 @@ def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix,nch
                     lrate = lograte
                     vect=avg_ffts
                 
-                logfftdata ([frq1]*len(avg_ffts),vect,longit,decs,lrate,srate,prefix)
+                logfftdata ([frq1]*len(avg_ffts),vect,longit,decs,lrate,srate,prefix,combine)
             then = now
         
         #
@@ -308,7 +308,7 @@ def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix,nch
 # Remember last time we logged FFT data
 #
 lastfftlogged = time.time()
-def logfftdata (flist,plist,longit,decln,rate,srate,pfx):
+def logfftdata (flist,plist,longit,decln,rate,srate,pfx,combine):
     global lastfftlogged
     global doephem
     t = time.gmtime()
@@ -316,7 +316,16 @@ def logfftdata (flist,plist,longit,decln,rate,srate,pfx):
         sid = cur_sidereal (longit, 0)[0]
     else:
         sid = "??,??,??"
-
+        
+    
+    if os.path.exists(pfx+"-current_decln.txt"):
+        f = open (pfx+"-current_decln.txt", "r")
+        v = f.readline()
+        v = v.strip("\n")
+        v = float(v)
+        f.close()
+        for i in range(len(decln)):
+            decln[i] = v
     #
     # Not time for it yet, buddy
     #
@@ -329,6 +338,12 @@ def logfftdata (flist,plist,longit,decln,rate,srate,pfx):
     #
     # MUST be 1:1 correspondence between flist and plist
     #
+    if combine == True:
+        newplist = numpy.add(plist[0],plist[1])
+        newplist = numpy.multiply(newplist, [0.5]*len(newplist))
+        flist = [flist[0]]
+        plist = [newplist]
+
     for x in range(0,len(flist)):
         
         #
@@ -490,6 +505,7 @@ if __name__ == '__main__':
     parser.add_option ("--caldev", dest="caldev", type="string", default="")
     parser.add_option ("--caltype", dest="caltype", type="choice", choices=["simple","bitwhacker"], default="simple")
     parser.add_option ("--calspeed", dest="calspeed", type="int", default=115200)
+    parser.add_option ("--combine", dest="combine", action="store_true", default=False)
 
     (o, args) = parser.parse_args()
     
@@ -526,7 +542,7 @@ if __name__ == '__main__':
         if newpid == 0:
             hlist = o.hostlist.split(",")
             doit_fft(o.fftsize,o.alpha,o.rate*10,o.port+1,o.f1,o.f2,o.srate,
-                o.longit,declns,o.slog,o.prefix,o.nchan,o.nhost,hlist,caldict)
+                o.longit,declns,o.slog,o.prefix,o.nchan,o.nhost,hlist,caldict,o.combine)
             os.exit(0)
         else:
             f=open("ra_detector_receiver-"+o.prefix+".pid", "w")

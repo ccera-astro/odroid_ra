@@ -399,7 +399,7 @@ then
 		
 	ra_detector_receiver.py -a $ALPHA -p $PORT -1 $FREQ -2 $FREQ  \
 		-l $LONG -d $DECLN -r $LRATE -s 2.5e6 -g $DCGAIN -x $EXPNAME $dlogging $slogging --nhost 2 --nchan 1 --hostlist $HOST \
-		--fftsize $FFTSIZE  --caldev /dev/ttyUSB0 &
+		--fftsize $FFTSIZE  --combine &
 	
 	
     PID=$!
@@ -413,7 +413,7 @@ then
 	for ht in `echo $HOST|sed -e 's/,/ /g'`
 	do
 		sshpass -p astronomer ssh astronomer@$ht "rm -f .gr_fftw_wisdom"
-		cmd="$RNAME --gain $GAIN  --f1 $FREQ   --abw $ABW --host $inaddr --port $PORT --srate $SRATE   --udev $UDEV --fftsize $FFTSIZE --offset $OFFSET"
+		cmd="$RNAME --gain $GAIN  --f1 $FREQ   --abw $ABW --host $inaddr --port $PORT --srate $SRATE   --udev $UDEV  --offset $OFFSET"
 		echo Running remote command: "$cmd"
 		echo ....ON HOST $ht
 		sshpass -p astronomer ssh astronomer@$ht "source ~/.bashrc; psycho_killer.py astronomer $RNAME; sleep 2; $cmd" &
