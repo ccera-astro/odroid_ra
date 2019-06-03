@@ -7,6 +7,7 @@ import binascii
 from optparse import OptionParser
 import operator
 import serial
+import math
 
 doephem=True
 try:
@@ -308,12 +309,28 @@ def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix,nch
 # Remember last time we logged FFT data
 #
 lastfftlogged = time.time()
+darkslides=None
+COVERAGE=180
+darkcounts=[1]*COVERAGE
+import copy
 def logfftdata (flist,plist,longit,decln,rate,srate,pfx,combine):
     global lastfftlogged
     global doephem
+    global darkslides
+    global darkcounts
+    
+    #
+    # Initialize to length of plist entries
+    #
+    if (darkslides == None):
+        darkslides = [[-200.0]*len(plist[0])]*COVERAGE
+
+    decsid = None
     t = time.gmtime()
     if (doephem):
         sid = cur_sidereal (longit, 0)[0]
+        sids = sid.split(",")
+        decisid = float(sids[0])+float(sids[1])/60.0+float(sids[2])/3600.0
     else:
         sid = "??,??,??"
         
@@ -326,6 +343,7 @@ def logfftdata (flist,plist,longit,decln,rate,srate,pfx,combine):
         f.close()
         for i in range(len(decln)):
             decln[i] = v
+        
     #
     # Not time for it yet, buddy
     #
@@ -369,6 +387,42 @@ def logfftdata (flist,plist,longit,decln,rate,srate,pfx,combine):
         f.write (str(int(srate))+",")
         f.write(str(decln[di])+",")
         
+        if (decisid != None):
+            ep = ephem.Equatorial(str(decisid), str(decln[di]))
+            gp = ephem.Galactic(ep)
+            glat = math.degree(gp.lat)
+            #
+            # If the galactic latitude of the current observation is outside of
+            #   {-35,+35}, then we assume this is just "cold space", and is it
+            #  as a "dark slide" calibrator.
+            #
+            if (glat < -35 or glat > 35):
+                ndx = int(decln[di])
+                ndx += 90
+                vs = darkslide[ndx]
+                if (vs[0] < -150.0):
+                    darkslides[ndx] = copy.deepcopy(plist[x])
+                darkslides[ndx] = numpy.add(darkslides[ndx],plist[x])
+                darkcounts[ndx] += 1
+                df = open(pfx+"-darkslide-%02d.csv" % (int(decln[di])), "w")
+                half = len(vs)/2
+                half -= 1
+                half = int(half)
+                for dx in range(half,len(vs)):
+                    df.write ("%-6.2f" % vs[dx]/darkcounts[ndx])
+                for dx in range(0,half):
+                    df.write("%-6.2f" % vs[dx]/darkcounts[ndx])
+                    if (dx < half):
+                        df.write(",")
+                        
+                df.write("\n")
+                df.close()
+                #
+                # Reduce occasionally to prevent overflow
+                #
+                if (darkcounts[ndx] >= 50):
+                    darkslides[ndx] = numpy.divide(darkslides[ndx],[darkcounts[ndx]]*len(darkslides[ndx]))
+                    darkcounts[ndx] = 1                         
         #
         # Bumpeth the declination index
         #
@@ -377,11 +431,13 @@ def logfftdata (flist,plist,longit,decln,rate,srate,pfx,combine):
         #
         # Write out the FFT data
         #
-        for i in range((len(plist[x])/2)-1,len(plist[x])):
+        half = len(plist[x])/2
+        half -= 1
+        half=int(half)
+        for i in range(half,len(plist[x])):
             y = plist[x]
             f.write("%-6.2f" % y[i])
-            if (i < len(plist[x])-1):
-                f.write(",")
+            f.write(",")
         for i in range(0,len(plist[x])/2):
             y = plist[x]
             f.write("%-6.2f" % y[i])
@@ -389,6 +445,7 @@ def logfftdata (flist,plist,longit,decln,rate,srate,pfx,combine):
                 f.write(",")
         f.write ("\n")
         f.close()
+        
 
 #
 # Determine current sidereal time
