@@ -401,9 +401,8 @@ def logfftdata (flist,plist,longit,decln,rate,srate,pfx,combine):
         f.write(str(decln[di])+",")
         
         if (decisid != None):
-			
 			#
-			# Compute where the Sun current is
+			# Compute where the Sun currently is
 			#
             sun = ephem.Sun()
             sun.compute()
@@ -420,10 +419,13 @@ def logfftdata (flist,plist,longit,decln,rate,srate,pfx,combine):
             dupdate = True
             if (abs(sun.ra-beam.ra) < math.radians(12.0) and abs(sun.dec-beam.dec) < math.radians(12.0)):
                 dupdate = False
-                
-            ep = ephem.Equatorial(str(decisid), str(decln[di]))
-            gp = ephem.Galactic(ep)
+            
+            #
+            # Compute galactic coordinates of our beam
+            #
+            gp = ephem.Galactic(beam)
             glat = math.degrees(gp.lat)
+            
             #
             # If the galactic latitude of the current observation is outside of
             #   the main galactic plane, we use it as a "cold sky" calibrator
