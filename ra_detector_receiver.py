@@ -356,9 +356,9 @@ def logfftdata (flist,plist,longit,decln,rate,srate,pfx,combine):
     #
     # MUST be 1:1 correspondence between flist and plist
     #
-    if combine == True:
+    if combine == True and len(plist) == 2:
         newplist = numpy.add(plist[0],plist[1])
-        newplist = numpy.multiply(newplist, [0.5]*len(newplist))
+        newplist = numpy.multiply(newplist, 0.5)
         flist = [flist[0]]
         plist = [newplist]
 
@@ -406,13 +406,12 @@ def logfftdata (flist,plist,longit,decln,rate,srate,pfx,combine):
                 darkcounts[ndx] += 1
                 df = open(pfx+"-darkslide-%02d.csv" % (int(decln[di])), "w")
                 half = len(vs)/2
-                half -= 1
                 half = int(half)
                 for dx in range(half,len(vs)):
                     df.write ("%-6.2f" % vs[dx]/darkcounts[ndx])
-                for dx in range(0,half):
+                for dx in range(0,half-1):
                     df.write("%-6.2f" % vs[dx]/darkcounts[ndx])
-                    if (dx < half):
+                    if (dx < half-1):
                         df.write(",")
                         
                 df.write("\n")
@@ -421,7 +420,7 @@ def logfftdata (flist,plist,longit,decln,rate,srate,pfx,combine):
                 # Reduce occasionally to prevent overflow
                 #
                 if (darkcounts[ndx] >= 50):
-                    darkslides[ndx] = numpy.divide(darkslides[ndx],[darkcounts[ndx]]*len(darkslides[ndx]))
+                    darkslides[ndx] = numpy.divide(darkslides[ndx],darkcounts[ndx])
                     darkcounts[ndx] = 1                         
         #
         # Bumpeth the declination index
@@ -432,16 +431,15 @@ def logfftdata (flist,plist,longit,decln,rate,srate,pfx,combine):
         # Write out the FFT data
         #
         half = len(plist[x])/2
-        half -= 1
         half=int(half)
         for i in range(half,len(plist[x])):
             y = plist[x]
             f.write("%-6.2f" % y[i])
             f.write(",")
-        for i in range(0,len(plist[x])/2):
+        for i in range(0,half-1):
             y = plist[x]
             f.write("%-6.2f" % y[i])
-            if (i < (len(plist[x])/2)-1):
+            if (i < (half-1)):
                 f.write(",")
         f.write ("\n")
         f.close()
