@@ -140,7 +140,7 @@
     </param>
     <param>
       <key>value</key>
-      <value>3</value>
+      <value>4</value>
     </param>
   </block>
   <block>
@@ -210,7 +210,7 @@
     </param>
     <param>
       <key>width</key>
-      <value>300e3</value>
+      <value>270e3</value>
     </param>
     <param>
       <key>win</key>
@@ -295,34 +295,7 @@
     </param>
     <param>
       <key>value</key>
-      <value>{8192 : 125, 4096 : 450, 2048 : 1100, 1024 : 1500}</value>
-    </param>
-  </block>
-  <block>
-    <key>variable</key>
-    <param>
-      <key>comment</key>
-      <value></value>
-    </param>
-    <param>
-      <key>_enabled</key>
-      <value>True</value>
-    </param>
-    <param>
-      <key>_coordinate</key>
-      <value>(432, 468)</value>
-    </param>
-    <param>
-      <key>_rotation</key>
-      <value>0</value>
-    </param>
-    <param>
-      <key>id</key>
-      <value>rotation</value>
-    </param>
-    <param>
-      <key>value</key>
-      <value>offset*((3.1415926*2.0)/bandwidth)</value>
+      <value>{8192 : 125, 4096 : 475, 2048 : 1100, 1024 : 1500}</value>
     </param>
   </block>
   <block>

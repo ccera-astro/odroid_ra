@@ -431,6 +431,8 @@ def logfftdata (flist,plist,longit,decln,rate,srate,pfx,combine):
             #   the main galactic plane, we use it as a "cold sky" calibrator
             #   and "dark slide" to remove instrument artifacts.
             #
+            # We also avoid writing dark-slide data when the Sun is in the beam
+            #
             #
             if (dupdate == True and (glat < -OUTSIDE_GP or glat > OUTSIDE_GP)):
                 
@@ -464,7 +466,7 @@ def logfftdata (flist,plist,longit,decln,rate,srate,pfx,combine):
                 half = len(vs)/2
                 half = int(half)
                 for dx in range(half,len(vs)):
-                    df.write ("%-6.2f" % vs[dx]/darkcounts[ndx])
+                    df.write ("%-6.2f," % vs[dx]/darkcounts[ndx])
                 for dx in range(0,half-1):
                     df.write("%-6.2f" % vs[dx]/darkcounts[ndx])
                     if (dx < half-1):
@@ -488,11 +490,10 @@ def logfftdata (flist,plist,longit,decln,rate,srate,pfx,combine):
         # Write out the FFT data
         #
         half = len(plist[x])/2
-        half=int(half)
+        half = int(half)
         for i in range(half,len(plist[x])):
             y = plist[x]
-            f.write("%-6.2f" % y[i])
-            f.write(",")
+            f.write("%-6.2f," % y[i])
         for i in range(0,half-1):
             y = plist[x]
             f.write("%-6.2f" % y[i])
