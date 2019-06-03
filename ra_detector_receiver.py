@@ -309,10 +309,22 @@ def doit_fft(fftsize,a,lograte,port,frq1,frq2,srate,longit,decln,logf,prefix,nch
 # Remember last time we logged FFT data
 #
 lastfftlogged = time.time()
+
+#
+# Initial value for darkslides--we'll create it on the fly on first logging
+#
 darkslides=None
+#
+# Maximum sky coverage--from -90 to +90
+#
 COVERAGE=180
 darkcounts=[1]*COVERAGE
+
+#
+# What we use to determine if current observation is "outside" of galactic plane
+#
 OUTSIDE_GP=37.0
+
 import copy
 def logfftdata (flist,plist,longit,decln,rate,srate,pfx,combine):
     global lastfftlogged
@@ -321,7 +333,7 @@ def logfftdata (flist,plist,longit,decln,rate,srate,pfx,combine):
     global darkcounts
     
     #
-    # Initialize to length of plist entries
+    # Initialize darkslides to length of plist entries
     #
     if (darkslides == None):
         darkslides = [[-200.0]*len(plist[0])]*COVERAGE
@@ -389,22 +401,63 @@ def logfftdata (flist,plist,longit,decln,rate,srate,pfx,combine):
         f.write(str(decln[di])+",")
         
         if (decisid != None):
+			
+			#
+			# Compute where the Sun current is
+			#
+            sun = ephem.Sun()
+            sun.compute()
+            
+            #
+            # Figure out our beam pointing--for a transit instrument, it's just
+            #  LMST,DEC
+            #
+            beam = ephem.equatorial(str(decisid),str(decln[di]))
+            
+            #
+            # Suppress dark-slide writing if Sun is too close to our beam
+            #
+            dupdate = True
+            if (abs(sun.ra-beam.ra) < math.radians(12.0) and abs(sun.dec-beam.dec) < math.radians(12.0)):
+                dupdate = False
+                
             ep = ephem.Equatorial(str(decisid), str(decln[di]))
             gp = ephem.Galactic(ep)
-            glat = math.degree(gp.lat)
+            glat = math.degrees(gp.lat)
             #
             # If the galactic latitude of the current observation is outside of
-            #   {-35,+35}, then we assume this is just "cold space", and is it
-            #  as a "dark slide" calibrator.
+            #   the main galactic plane, we use it as a "cold sky" calibrator
+            #   and "dark slide" to remove instrument artifacts.
             #
-            if (glat < -OUTSIDE_GP or glat > OUTSIDE_GP):
+            #
+            if (dupdate == True and (glat < -OUTSIDE_GP or glat > OUTSIDE_GP)):
+                
+                #
+                # Form an index into the darkslides array of lists
+                #
                 ndx = int(decln[di])
-                ndx += 90
+                ndx += int(COVERAGE/2)
+                
+                #
+                # Pick up the values
+                #
                 vs = darkslide[ndx]
-                if (vs[0] < -150.0):
+                
+                #
+                # Initialize
+                #
+                if (vs[0] < -180.0):
                     darkslides[ndx] = copy.deepcopy(plist[x])
+
+                #
+                # Add current values in
+                #
                 darkslides[ndx] = numpy.add(darkslides[ndx],plist[x])
                 darkcounts[ndx] += 1
+                
+                #
+                # Write out the darkslide file
+                #
                 df = open(pfx+"-darkslide-%02d.csv" % (int(decln[di])), "w")
                 half = len(vs)/2
                 half = int(half)
@@ -417,10 +470,11 @@ def logfftdata (flist,plist,longit,decln,rate,srate,pfx,combine):
                         
                 df.write("\n")
                 df.close()
+                
                 #
                 # Reduce occasionally to prevent overflow
                 #
-                if (darkcounts[ndx] >= 50):
+                if (darkcounts[ndx] >= 20):
                     darkslides[ndx] = numpy.divide(darkslides[ndx],darkcounts[ndx])
                     darkcounts[ndx] = 1                         
         #
