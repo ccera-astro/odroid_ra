@@ -417,7 +417,7 @@ def logfftdata (flist,plist,longit,decln,rate,srate,pfx,combine):
             # Suppress dark-slide writing if Sun is too close to our beam
             #
             dupdate = True
-            if (abs(sun.ra-beam.ra) < math.radians(12.0) and abs(sun.dec-beam.dec) < math.radians(12.0)):
+            if (math.degrees(ephem.separation((beam.ra,beam.dec),(sun.ra,sun.dec))) <= 10.0):
                 dupdate = False
             
             #
