@@ -416,9 +416,9 @@ def logfftdata (flist,plist,longit,decln,rate,srate,pfx,combine):
             #
             # Suppress dark-slide writing if Sun is too close to our beam
             #
-            dupdate = True
+            sunbeam = False
             if (math.degrees(ephem.separation((beam.ra,beam.dec),(sun.ra,sun.dec))) <= 10.0):
-                dupdate = False
+                dupdate = True
             
             #
             # Compute galactic coordinates of our beam
@@ -434,7 +434,7 @@ def logfftdata (flist,plist,longit,decln,rate,srate,pfx,combine):
             # We also avoid writing dark-slide data when the Sun is in the beam
             #
             #
-            if (dupdate == True and (glat < -OUTSIDE_GP or glat > OUTSIDE_GP)):
+            if (sunbeam == False and (glat < -OUTSIDE_GP or glat > OUTSIDE_GP)):
                 
                 #
                 # Form an index into the darkslides array of lists
