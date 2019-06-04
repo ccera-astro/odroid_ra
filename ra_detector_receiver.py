@@ -314,11 +314,13 @@ lastfftlogged = time.time()
 # Initial value for darkslides--we'll create it on the fly on first logging
 #
 darkslides=None
+
 #
 # Maximum sky coverage--from -90 to +90
 #
 COVERAGE=180
 darkcounts=[1]*COVERAGE
+dsinit=[False]*COVERAGE
 
 #
 # What we use to determine if current observation is "outside" of galactic plane
@@ -331,6 +333,7 @@ def logfftdata (flist,plist,longit,decln,rate,srate,pfx,combine):
     global doephem
     global darkslides
     global darkcounts
+    global dsinit
     
     #
     # Initialize darkslides to length of plist entries
@@ -338,7 +341,7 @@ def logfftdata (flist,plist,longit,decln,rate,srate,pfx,combine):
     if (darkslides == None):
         darkslides = [[-200.0]*len(plist[0])]*COVERAGE
 
-    decsid = None
+    decisid = None
     t = time.gmtime()
     if (doephem):
         sid = cur_sidereal (longit, 0)[0]
@@ -401,9 +404,9 @@ def logfftdata (flist,plist,longit,decln,rate,srate,pfx,combine):
         f.write(str(decln[di])+",")
         
         if (decisid != None):
-			#
-			# Compute where the Sun currently is
-			#
+            #
+            # Compute where the Sun currently is
+            #
             sun = ephem.Sun()
             sun.compute()
             
@@ -411,14 +414,14 @@ def logfftdata (flist,plist,longit,decln,rate,srate,pfx,combine):
             # Figure out our beam pointing--for a transit instrument, it's just
             #  LMST,DEC
             #
-            beam = ephem.equatorial(str(decisid),str(decln[di]))
+            beam = ephem.Equatorial(str(decisid),str(decln[di]))
             
             #
             # Suppress dark-slide writing if Sun is too close to our beam
             #
             sunbeam = False
             if (math.degrees(ephem.separation((beam.ra,beam.dec),(sun.ra,sun.dec))) <= 10.0):
-                dupdate = True
+                sunbeam = True
             
             #
             # Compute galactic coordinates of our beam
@@ -445,19 +448,22 @@ def logfftdata (flist,plist,longit,decln,rate,srate,pfx,combine):
                 #
                 # Pick up the values
                 #
-                vs = darkslide[ndx]
+                vs = darkslides[ndx]
                 
                 #
                 # Initialize
                 #
-                if (vs[0] < -180.0):
+                if (dsinit[ndx] == False):
+                    dsinit[ndx] = True
                     darkslides[ndx] = copy.deepcopy(plist[x])
-
+                
                 #
                 # Add current values in
                 #
                 darkslides[ndx] = numpy.add(darkslides[ndx],plist[x])
                 darkcounts[ndx] += 1
+                
+                vs = darkslides[ndx]
                 
                 #
                 # Write out the darkslide file
@@ -465,10 +471,13 @@ def logfftdata (flist,plist,longit,decln,rate,srate,pfx,combine):
                 df = open(pfx+"-darkslide-%02d.csv" % (int(decln[di])), "w")
                 half = len(vs)/2
                 half = int(half)
-                for dx in range(half,len(vs)):
-                    df.write ("%-6.2f," % vs[dx]/darkcounts[ndx])
-                for dx in range(0,half-1):
-                    df.write("%-6.2f" % vs[dx]/darkcounts[ndx])
+                full = len(vs)
+                for dx in range(half,full):
+                    val = vs[dx]/float(darkcounts[ndx])
+                    df.write ("%-6.2f," % val)
+                for dx in range(0,half):
+                    val = vs[dx]/float(darkcounts[ndx])
+                    df.write("%-6.2f" % val)
                     if (dx < half-1):
                         df.write(",")
                         
@@ -479,7 +488,7 @@ def logfftdata (flist,plist,longit,decln,rate,srate,pfx,combine):
                 # Reduce occasionally to prevent overflow
                 #
                 if (darkcounts[ndx] >= 20):
-                    darkslides[ndx] = numpy.divide(darkslides[ndx],darkcounts[ndx])
+                    darkslides[ndx] = numpy.divide(darkslides[ndx],float(darkcounts[ndx]))
                     darkcounts[ndx] = 1                         
         #
         # Bumpeth the declination index
@@ -491,13 +500,13 @@ def logfftdata (flist,plist,longit,decln,rate,srate,pfx,combine):
         #
         half = len(plist[x])/2
         half = int(half)
-        for i in range(half,len(plist[x])):
-            y = plist[x]
+        full = len(plist[x])
+        y = plist[x]
+        for i in range(half,full):
             f.write("%-6.2f," % y[i])
-        for i in range(0,half-1):
-            y = plist[x]
+        for i in range(0,half):
             f.write("%-6.2f" % y[i])
-            if (i < (half-1)):
+            if (i < half-1):
                 f.write(",")
         f.write ("\n")
         f.close()
