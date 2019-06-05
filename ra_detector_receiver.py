@@ -323,9 +323,9 @@ darkcounts=[1]*COVERAGE
 dsinit=[False]*COVERAGE
 
 #
-# What we use to determine if current observation is "outside" of galactic plane
+# What we use to determine if current observation is "outside" of main galactic plane
 #
-OUTSIDE_GP=37.0
+OUTSIDE_GP=45.0
 
 import copy
 def logfftdata (flist,plist,longit,decln,rate,srate,pfx,combine):
