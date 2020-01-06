@@ -18,7 +18,7 @@ import time
 import math
 import sys
 
-def doit(a,lograte,port,dcgain,frq1,frq2,longit,decln,logf,prefix,legend):
+def doit(a,loglograte,port,dcgain,frq1,frq2,longit,decln,logf,prefix,legend):
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -327,6 +327,11 @@ dsinit=[False]*COVERAGE
 #
 OUTSIDE_GP=45.0
 
+def linearize(v):
+    v = numpy.divide(v, 10.0)
+    v = numpy.power(10.0, v)
+    return v
+
 import copy
 def logfftdata (flist,plist,longit,decln,rate,srate,pfx,combine):
     global lastfftlogged
@@ -375,6 +380,14 @@ def logfftdata (flist,plist,longit,decln,rate,srate,pfx,combine):
     if combine == True and len(plist) == 2:
         newplist = numpy.add(plist[0],plist[1])
         newplist = numpy.multiply(newplist, 0.5)
+        lp1 = linearize(plist[0])
+        lp2 = linearize(plist[1])
+        ratio = numpy.sum(lp1)/numpy.sum(lp2)
+        if (ratio > 3.00 or ratio < 0.3333):
+            f = open(pfx+"-ALERT.txt", "a")
+            f.write("%02d:%02d:%02d: ratio %f\n" % (t.tm_hour, t.tm_min, t.tm_sec, ratio))
+            f.close()
+            
         flist = [flist[0]]
         plist = [newplist]
 
