@@ -378,16 +378,39 @@ def logfftdata (flist,plist,longit,decln,rate,srate,pfx,combine):
     # MUST be 1:1 correspondence between flist and plist
     #
     if combine == True and len(plist) == 2:
-        newplist = numpy.add(plist[0],plist[1])
-        newplist = numpy.multiply(newplist, 0.5)
         lp1 = linearize(plist[0])
         lp2 = linearize(plist[1])
         ratio = numpy.sum(lp1)/numpy.sum(lp2)
-        if (ratio > 3.00 or ratio < 0.3333):
+        
+        #
+        # If one side is significantly stronger than another, there's a problem
+        #  So, we append a message to an "ALERT" file
+        #
+        if (ratio > 2.50 or ratio < (1.0/2.5)):
             f = open(pfx+"-ALERT.txt", "a")
             f.write("%02d:%02d:%02d: ratio %f\n" % (t.tm_hour, t.tm_min, t.tm_sec, ratio))
             f.close()
-            
+        
+        #
+        # We adjust the two sides to be roughly-equal in magnitude
+        #
+        if (ratio < 1.0):
+            lp1 = numpy.muiltiply(lp1,1.0/ratio)
+        else:
+            lp2 = numpy.multiply(lp2,ratio)
+        
+        #
+        # Then compute the linearized average
+        #
+        avg = numpy.add(lp1,lp2)
+        avg = numpy.divide(avg,2.0)
+        
+        #
+        # Then back into log10 form
+        #
+        newplist = numpy.log10(avg)
+        newplist = numpy.multiply(newplist,10.0)
+        
         flist = [flist[0]]
         plist = [newplist]
 
