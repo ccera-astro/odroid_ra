@@ -395,7 +395,7 @@ def logfftdata (flist,plist,longit,decln,rate,srate,pfx,combine):
         # We adjust the two sides to be roughly-equal in magnitude
         #
         if (ratio < 1.0):
-            lp1 = numpy.muiltiply(lp1,1.0/ratio)
+            lp1 = numpy.multiply(lp1,1.0/ratio)
         else:
             lp2 = numpy.multiply(lp2,ratio)
         
